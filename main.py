@@ -1,6 +1,6 @@
-from graphit import GraphiteDb
+import graphit
 
-db = GraphiteDb()
+db = graphit.new_database()
 
 with open("C:/Users/Mahan/Desktop/Graphite Example.gdbs") as file:
 	err = db.parse_struct(file.read())
