@@ -1,6 +1,6 @@
-from graphit import GraphiteDb
+import graphit
 
-db = GraphiteDb()
+db = graphit.new_database()
 
 with open("C:/Users/Mahan/Desktop/Graphite Example.gdbs") as file:
 	err = db.parse_struct(file.read())
@@ -8,6 +8,7 @@ if err:
 	print(err)
 	exit(1)
 
+# print(db.struct)
 # print(db.struct_overview())
 
 nodes = [
@@ -36,6 +37,9 @@ if err:
 	print(err)
 	exit(1)
 
-print(db.nodes_overview())
-print(db.relations_overview())
+# print(db.nodes)
+# print(db.relations)
+# print(db.nodes_overview())
+# print(db.relations_overview())
 
+print(db.query("Person.where_rel(FRIEND, since == 2020-08-11).select(first_name, last_name, age).order_by(age).offset(1).limit(1)"))
