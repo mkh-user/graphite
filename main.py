@@ -1,41 +1,56 @@
 import graphit
+from datetime import date
 
-db = graphit.new_database()
+engine = graphit.engine()
 
-with open("C:/Users/Mahan/Desktop/Graphite Example.gdbs") as file:
-	err = db.parse_struct(file.read())
-if err:
-	print(err)
-	exit(1)
+# Define schema
+engine.define_node("""
+node Person
+name: string
+age: int
+""")
+engine.define_node("""
+node Object
+price: int
+""")
 
-# print(db.struct_overview())
+engine.define_relation("""
+relation FRIEND both
+Person - Person
+since: date
+""")
 
-nodes = [
-	# ["Person", "user1", ["Mahan", "Khalili", 16]],
-	# ["Person", "user2", ["Pouyan", "Khalili", 13]],
-	# ["Book", "math", [1200, 200]],
-]
-relations = [
-	# ["FRIEND", "user1", "user2", ["2010-07-12"]],
-]
+# Or use helper functions
+#engine.load_dsl(node("User", name="string", age="int"))
 
-for n in nodes:
-	err = db.add_node(n[0], n[1], n[2])
-	if err:
-		print(err)
-		exit(1)
-for r in relations:
-	err = db.add_relation(r[0], r[1], r[2], r[3])
-	if err:
-		print(err)
-		exit(1)
+engine.load_dsl("""
+node User from Person
+id: string
+""")
+engine.load_dsl("""
+relation OWNER reverse OWNED_BY
+Person -> Object
+since: date
+""")
 
-with open("C:/Users/Mahan/Desktop/Graphite Example.gdb") as file:
-	err = db.parse_data(file.read())
-if err:
-	print(err)
-	exit(1)
+# Create nodes
+engine.create_node("User", "user1", "John", 25, "john_1")
+engine.create_node("User", "user2", "Max", 28, "minimum")
+engine.create_node("Object", "book", 1000)
 
-print(db.nodes_overview())
-print(db.relations_overview())
+# Create relations
+engine.create_relation("user1", "user2", "FRIEND", date.today())
+engine.create_relation("user1", "book", "OWNER", date.today())
+engine.create_relation("book", "user2", "OWNED_BY", date.today())
 
+# Query
+result = (engine.query.User
+         .where("age > 18")
+         .outgoing("FRIEND")
+         .where(lambda n: n['name'].startswith('J'))
+         .limit(10)
+         .ids())
+
+print(result)
+
+print(engine.query.Object.incoming("OWNER").ids() + engine.query.Object.outgoing("OWNED_BY").ids())
