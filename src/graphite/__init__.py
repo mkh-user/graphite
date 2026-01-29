@@ -582,13 +582,13 @@ class GraphiteEngine:
 					i += 1
 				self.define_relation('\n'.join(rel_def))
 
-			elif ',' in line and not line.startswith(('-', '[')):
+			elif '[' not in line:
 				# Node instance
 				node_type, node_id, values = self.parser.parse_node_instance(line)
 				self.create_node(node_type, node_id, *values)
 				i += 1
 
-			elif ('-[' in line or '->' in line) and ']' in line:
+			elif '-[' in line and (']->' in line or ']-' in line):
 				# Relation instance
 				from_id, to_id, rel_type, values, direction = self.parser.parse_relation_instance(line)
 				self.create_relation(from_id, to_id, rel_type, *values)
