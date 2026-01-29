@@ -1,7 +1,7 @@
-import graphit
+import graphite
 from datetime import date
 
-engine = graphit.engine()
+engine = graphite.engine()
 
 # Define schema
 engine.define_node("""

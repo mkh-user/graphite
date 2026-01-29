@@ -1,10 +1,10 @@
-from graphit import GraphiteEngine
+import graphite
 
 # =============== EXAMPLE COMPLETE DSL LOADING ===============
 
 # Complete example of dsl loading
 def example_complete_dsl_loading():
-	engine = GraphiteEngine()
+	engine = graphite.engine()
 
 	complete_dsl = """
     # Define node types
@@ -107,46 +107,3 @@ def example_complete_dsl_loading():
 	print(f"\nFriends of friends of Joe Doe: {[f['name'] for f in friends_of_friends]}")
 
 	return engine
-
-# =============== ADVANCED EXAMPLE ===============
-
-def example_network_analysis():
-	"""Social media analysis example"""
-	engine = GraphiteEngine()
-
-	social_network_dsl = """
-    node Person
-    name: string
-    age: int
-    city: string
-
-    relation FOLLOWS
-    Person -> Person
-    since: date
-
-    relation LIKES
-    Person -> Post
-    timestamp: date
-
-    node Post
-    content: string
-    created_at: date
-
-    relation COMMENTED_ON reverse HAS_COMMENT
-    Person -> Post
-    content: string
-    timestamp: date
-
-    # Persons
-    Person, p1, "Ali", 25, "Tehran"
-    Person, p2, "Sara", 30, "Isfahan"
-    Person, p3, "Reza", 28, "Tehran"
-    Person, p4, "Maryam", 35, "Shiraz"
-    Person, p5, "Hassan", 22, "Tabriz"
-
-    # Posts
-    Post, post1, "Hello World!", 2024-01-15
-    Post, post2, "Python is awesome!", 2024-01-20
-    Post, post3, "Graph databases rock!", 2024-01-25
-
-    """ # TODO
