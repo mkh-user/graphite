@@ -258,8 +258,8 @@ class QueryResult:
 				try:
 					if condition(node):
 						filtered_nodes.append(node)
-				except:
-					continue
+				except e:
+					print(f"Graphite Warn: 'where' condition failed for node {node}: {e}")
 		else:
 			# String condition like "age > 18"
 			for node in self.nodes:
@@ -477,8 +477,8 @@ class GraphiteEngine:
 			if field.dtype == DataType.DATE and isinstance(value, str):
 				try:
 					value = datetime.strptime(value, "%Y-%m-%d").date()
-				except:
-					pass
+				except e:
+					raise ValueError(f"Invalid date format: {value}")
 			node_values[field.name] = value
 
 		node = Node(node_type, node_id, node_values, node_type_obj)
@@ -507,8 +507,8 @@ class GraphiteEngine:
 				if field.dtype == DataType.DATE and isinstance(value, str):
 					try:
 						value = datetime.strptime(value, "%Y-%m-%d").date()
-					except:
-						pass
+					except e:
+						raise ValueError(f"Invalid date format: {value}")
 				rel_values[field.name] = value
 
 		relation = Relation(rel_type, from_id, to_id, rel_values, rel_type_obj)
@@ -648,6 +648,12 @@ class GraphiteEngine:
 			'nodes'         : len(self.nodes),
 			'relations'     : len(self.relations),
 		}
+
+	# =============== SYNTAX SUGAR ===============
+
+	def parse(self, data: str):
+		"""Parse data into nodes and relations (strcuture or data)"""
+		self.load_dsl(data)
 
 # =============== SYNTAX SUGAR ===============
 

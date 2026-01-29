@@ -1,5 +1,5 @@
-import graphite
 from datetime import date
+import graphite
 
 engine = graphite.engine()
 
@@ -53,4 +53,4 @@ result = (engine.query.User
 
 print(result)
 
-print(engine.query.Object.incoming("OWNER").ids() + engine.query.Object.outgoing("OWNED_BY").ids())
+print(engine.query.User.order_by("name").first()["name"])
