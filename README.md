@@ -185,5 +185,3 @@ def example_complete_dsl_loading():
 ```
 
 More examples are available in `example.py` in the GitHub repository.
-::contentReference[oaicite:0]{index=0}
-```

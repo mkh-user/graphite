@@ -1,5 +1,9 @@
+"""
+Runs a generic example for Graphite module.
+"""
 from datetime import date
-import graphite
+# noinspection PyPackageRequirements
+import graphite # pylint: disable=import-error
 
 engine = graphite.engine()
 

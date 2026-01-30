@@ -1,9 +1,17 @@
-import graphite
+"""
+Example usages of Graphite in separate functions. You can run a function to see its result.
+"""
+# noinspection PyPackageRequirements
+import graphite # pylint: disable=import-error
 
 # =============== EXAMPLE COMPLETE DSL LOADING ===============
 
-# Complete example of dsl loading
-def example_complete_dsl_loading():
+def example_complete_dsl_loading() -> None:
+	"""
+	A complete example of DSL loading with Graphite.
+
+	:return: ``None``
+	"""
 	engine = graphite.engine()
 
 	complete_dsl = """
@@ -105,5 +113,3 @@ def example_complete_dsl_loading():
 	                      .distinct()
 	                      .get())
 	print(f"\nFriends of friends of Joe Doe: {[f['name'] for f in friends_of_friends]}")
-
-	return engine

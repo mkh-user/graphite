@@ -1,3 +1,9 @@
+"""
+Graphite: A clean, embedded graph database engine for Python.
+
+This is graphite module (installation: ``pip install graphitedb``).
+You can use it with ``import graphite``.
+"""
 from __future__ import annotations
 
 import pickle
@@ -11,6 +17,9 @@ from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 # =============== TYPE SYSTEM ===============
 
 class DataType(Enum):
+	"""
+	Valid data types in graphite. Used in nodes and relations properties.
+	"""
 	STRING = "string"
 	INT = "int"
 	DATE = "date"
@@ -19,12 +28,20 @@ class DataType(Enum):
 
 @dataclass
 class Field:
+	"""
+	A data field (property) for nodes and relations.
+	"""
 	name: str
 	dtype: DataType
 	default: Any = None
 
 @dataclass
 class NodeType:
+	"""
+	A defined node type (with ``node ...`` block in dsl or ``GraphiteEngine.define_node()``).
+	Each node type has a name (in snake_case usually), and optional list of fields (properties).
+	Supports optional parent node type.
+	"""
 	name: str
 	fields: List[Field] = field(default_factory=list)
 	parent: Optional[NodeType] = None
@@ -41,6 +58,12 @@ class NodeType:
 
 @dataclass
 class RelationType:
+	"""
+	A defined relation type (with ``relation ...`` block in dsl or
+	``GraphiteEngine.define_relation()``). Each relation type has a name (in UPPER_SNAKE_CASE
+	usually), and optional list of fields (properties). A relation type can be from one node
+	type to another.
+	"""
 	name: str
 	from_type: str
 	to_type: str
@@ -55,12 +78,17 @@ class RelationType:
 
 @dataclass
 class Node:
+	"""
+	A node in database. Has a base type, id, and properties from base type (and it's parent
+	type recursively).
+	"""
 	type_name: str
 	id: str
 	values: Dict[str, Any]
 	_type_ref: Optional[NodeType] = None
 
 	def get(self, field_name: str) -> Any:
+		"""Get a field from this node."""
 		return self.values.get(field_name)
 
 	def __getitem__(self, key):
@@ -71,6 +99,10 @@ class Node:
 
 @dataclass
 class Relation:
+	"""
+	A relation between two nodes in database. Has a base type, source and target node IDs,
+	and properties from base type.
+	"""
 	type_name: str
 	from_node: str  # node id
 	to_node: str  # node id
@@ -78,6 +110,7 @@ class Relation:
 	_type_ref: Optional[RelationType] = None
 
 	def get(self, field_name: str) -> Any:
+		"""Get a field from this relation."""
 		return self.values.get(field_name)
 
 	def __repr__(self):
@@ -119,6 +152,7 @@ class GraphiteParser:
 
 		return node_name, fields, parent
 
+	# pylint: disable=too-many-locals
 	@staticmethod
 	def parse_relation_definition(line: str) -> Tuple[str, str, str, List[Field], Optional[str], bool]:
 		"""Parse relation definition"""
@@ -241,8 +275,8 @@ class GraphiteParser:
 class QueryResult:
 	"""Represents a query result that can be chained"""
 
-	def __init__(self, engine: GraphiteEngine, nodes: List[Node], edges: List[Relation] = None):
-		self.engine = engine
+	def __init__(self, graph_engine: GraphiteEngine, nodes: List[Node], edges: List[Relation] = None):
+		self.engine = graph_engine
 		self.nodes = nodes
 		self.edges = edges or []
 		self.current_relation: Optional[RelationType] = None
@@ -254,21 +288,22 @@ class QueryResult:
 
 		if callable(condition):
 			# Lambda function
-			for node in self.nodes:
+			for processing_node in self.nodes:
 				try:
-					if condition(node):
-						filtered_nodes.append(node)
-				except e:
-					print(f"Graphite Warn: 'where' condition failed for node {node}: {e}")
+					if condition(processing_node):
+						filtered_nodes.append(processing_node)
+				except Exception as e: # pylint: disable=broad-exception-caught
+					print(f"Graphite Warn: 'where' condition failed for node {processing_node}: {e}")
 		else:
 			# String condition like "age > 18"
-			for node in self.nodes:
-				if self._evaluate_condition(node, condition):
-					filtered_nodes.append(node)
+			for processing_node in self.nodes:
+				if self._evaluate_condition(processing_node, condition):
+					filtered_nodes.append(processing_node)
 
 		return QueryResult(self.engine, filtered_nodes, self.edges)
 
-	def _evaluate_condition(self, node: Node, condition: str) -> bool:
+	# pylint: disable=too-many-branches
+	def _evaluate_condition(self, target_node: Node, condition: str) -> bool:
 		"""Evaluate a condition string on a node"""
 		# Simple condition parser
 		ops = ['>=', '<=', '!=', '==', '>', '<', '=']
@@ -280,7 +315,7 @@ class QueryResult:
 				right = right.strip()
 
 				# Get value from node
-				node_value = node.get(left)
+				node_value = target_node.get(left)
 				if node_value is None:
 					return False
 
@@ -295,18 +330,22 @@ class QueryResult:
 					right_value = right
 
 				# Apply operation
+				result = None
 				if op in ('=', '=='):
-					return node_value == right_value
-				elif op == '!=':
-					return node_value != right_value
-				elif op == '>':
-					return node_value > right_value
-				elif op == '<':
-					return node_value < right_value
-				elif op == '>=':
-					return node_value >= right_value
-				elif op == '<=':
-					return node_value <= right_value
+					result = node_value == right_value
+				if op == '!=':
+					result = node_value != right_value
+				if op == '>':
+					result = node_value > right_value
+				if op == '<':
+					result = node_value < right_value
+				if op == '>=':
+					result = node_value >= right_value
+				if op == '<=':
+					result = node_value <= right_value
+				if result is None:
+					raise ValueError(f"Invalid condition string: {condition}")
+				return result
 
 		return False
 
@@ -315,14 +354,14 @@ class QueryResult:
 		result_nodes = []
 		result_edges = []
 
-		for node in self.nodes:
+		for processing_node in self.nodes:
 			if direction == 'outgoing':
-				edges = self.engine.get_relations_from(node.id, relation_type)
+				edges = self.engine.get_relations_from(processing_node.id, relation_type)
 			elif direction == 'incoming':
-				edges = self.engine.get_relations_to(node.id, relation_type)
+				edges = self.engine.get_relations_to(processing_node.id, relation_type)
 			else:  # both
-				edges = (self.engine.get_relations_from(node.id, relation_type) +
-				         self.engine.get_relations_to(node.id, relation_type))
+				edges = (self.engine.get_relations_from(processing_node.id, relation_type) +
+				         self.engine.get_relations_to(processing_node.id, relation_type))
 
 			for edge in edges:
 				result_edges.append(edge)
@@ -355,17 +394,17 @@ class QueryResult:
 		"""Get distinct nodes"""
 		seen = set()
 		distinct_nodes = []
-		for node in self.nodes:
-			if node.id not in seen:
-				seen.add(node.id)
-				distinct_nodes.append(node)
+		for processing_node in self.nodes:
+			if processing_node.id not in seen:
+				seen.add(processing_node.id)
+				distinct_nodes.append(processing_node)
 		return QueryResult(self.engine, distinct_nodes, self.edges)
 
-	def order_by(self, field: str, descending: bool = False) -> QueryResult:
+	def order_by(self, by_field: str, descending: bool = False) -> QueryResult:
 		"""Order nodes by field"""
 
-		def get_key(node):
-			val = node.get(field)
+		def get_key(from_node):
+			val = from_node.get(by_field)
 			return (val is None, val)
 
 		sorted_nodes = sorted(self.nodes, key=get_key, reverse=descending)
@@ -387,11 +426,11 @@ class QueryResult:
 		"""Get node IDs"""
 		return [n.id for n in self.nodes]
 
-class QueryBuilder:
+class QueryBuilder: # pylint: disable=too-few-public-methods
 	"""Builder for creating queries"""
 
-	def __init__(self, engine: GraphiteEngine):
-		self.engine = engine
+	def __init__(self, graphite_engine: GraphiteEngine):
+		self.engine = graphite_engine
 
 	def __getattr__(self, name: str) -> QueryResult:
 		"""Allow starting query from node type: engine.User"""
@@ -402,7 +441,7 @@ class QueryBuilder:
 
 # =============== MAIN ENGINE ===============
 
-class GraphiteEngine:
+class GraphiteEngine: # pylint: disable=too-many-instance-attributes
 	"""Main graph database engine"""
 
 	def __init__(self):
@@ -472,19 +511,19 @@ class GraphiteEngine:
 
 		# Create values dictionary
 		node_values = {}
-		for field, value in zip(all_fields, values):
+		for current_field, value in zip(all_fields, values):
 			# Convert string dates to date objects
-			if field.dtype == DataType.DATE and isinstance(value, str):
+			if current_field.dtype == DataType.DATE and isinstance(value, str):
 				try:
 					value = datetime.strptime(value, "%Y-%m-%d").date()
-				except e:
-					raise ValueError(f"Invalid date format: {value}")
-			node_values[field.name] = value
+				except Exception as e:
+					raise ValueError(f"'{e}' while parsing date string: {value}") from e
+			node_values[current_field.name] = value
 
-		node = Node(node_type, node_id, node_values, node_type_obj)
-		self.nodes[node_id] = node
-		self.node_by_type[node_type].append(node)
-		return node
+		new_node = Node(node_type, node_id, node_values, node_type_obj)
+		self.nodes[node_id] = new_node
+		self.node_by_type[node_type].append(new_node)
+		return new_node
 
 	def create_relation(self, from_id: str, to_id: str, rel_type: str, *values) -> Relation:
 		"""Create a relation instance"""
@@ -501,21 +540,21 @@ class GraphiteEngine:
 
 		# Create values dictionary
 		rel_values = {}
-		for i, field in enumerate(rel_type_obj.fields):
+		for i, rel_field in enumerate(rel_type_obj.fields):
 			if i < len(values):
 				value = values[i]
-				if field.dtype == DataType.DATE and isinstance(value, str):
+				if rel_field.dtype == DataType.DATE and isinstance(value, str):
 					try:
 						value = datetime.strptime(value, "%Y-%m-%d").date()
-					except e:
-						raise ValueError(f"Invalid date format: {value}")
-				rel_values[field.name] = value
+					except Exception as e:
+						raise ValueError(f"'{e}' while parsing date string: {value}") from e
+				rel_values[rel_field.name] = value
 
-		relation = Relation(rel_type, from_id, to_id, rel_values, rel_type_obj)
-		self.relations.append(relation)
-		self.relations_by_type[rel_type].append(relation)
-		self.relations_by_from[from_id].append(relation)
-		self.relations_by_to[to_id].append(relation)
+		new_relation = Relation(rel_type, from_id, to_id, rel_values, rel_type_obj)
+		self.relations.append(new_relation)
+		self.relations_by_type[rel_type].append(new_relation)
+		self.relations_by_from[from_id].append(new_relation)
+		self.relations_by_to[to_id].append(new_relation)
 
 		# If relation is bidirectional, create reverse automatically
 		if rel_type_obj.is_bidirectional:
@@ -525,7 +564,7 @@ class GraphiteEngine:
 			self.relations_by_from[to_id].append(reverse_rel)
 			self.relations_by_to[from_id].append(reverse_rel)
 
-		return relation
+		return new_relation
 
 	# =============== QUERY METHODS ===============
 
@@ -568,7 +607,11 @@ class GraphiteEngine:
 				# Collect multiline node definition
 				node_def = [line]
 				i += 1
-				while i < len(lines) and lines[i].strip() and not lines[i].strip().startswith(('node', 'relation')):
+				while (
+						i < len(lines)
+						and lines[i].strip()
+						and not lines[i].strip().startswith(('node', 'relation'))
+				):
 					node_def.append(lines[i])
 					i += 1
 				self.define_node('\n'.join(node_def))
@@ -577,7 +620,11 @@ class GraphiteEngine:
 				# Collect multiline relation definition
 				rel_def = [line]
 				i += 1
-				while i < len(lines) and lines[i].strip() and not lines[i].strip().startswith(('node', 'relation')):
+				while (
+						i < len(lines)
+						and lines[i].strip()
+						and not lines[i].strip().startswith(('node', 'relation'))
+				):
 					rel_def.append(lines[i])
 					i += 1
 				self.define_relation('\n'.join(rel_def))
@@ -590,7 +637,7 @@ class GraphiteEngine:
 
 			elif '-[' in line and (']->' in line or ']-' in line):
 				# Relation instance
-				from_id, to_id, rel_type, values, direction = self.parser.parse_relation_instance(line)
+				from_id, to_id, rel_type, values, _ = self.parser.parse_relation_instance(line)
 				self.create_relation(from_id, to_id, rel_type, *values)
 				i += 1
 			else:

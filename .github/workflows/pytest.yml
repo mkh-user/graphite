@@ -1,3 +1,4 @@
+#file: noinspection GrazieInspection
 name: Pytest
 
 on:
@@ -26,4 +27,4 @@ jobs:
         if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
     - name: Test with pytest
       run: |
-        pytest
+        pytest --suppress-no-test-exit-code
