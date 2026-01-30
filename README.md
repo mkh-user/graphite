@@ -1,68 +1,156 @@
 # Graphite
-A clean graph database engine!
+
+A clean, embedded graph database engine for Python.
 
 ---
 
-Graphite is a simple yet flexible **Graph Database Engine** that is implemented in Python. This engine uses basic structures (similar to classes in programming languages) for nodes and connections (equivalent to Edges in other engines).
+**Graphite** is a lightweight yet flexible **graph database engine** implemented in pure Python.  
+It is designed to model graph-like data inside large Python codebases **without introducing the complexity of an external database**.
+
+---
 
 ## Features
 
-- **Structure-oriented:** Define node types and relation types in structure, define fields, base type, and valid forms.
-- **Base Node Type:** Create base type for node types to add base properties and advanced relations.
-- **First-class Nodes:** Create nodes from node types and fill data fields.
-- **Relations with Properties:** Like nodes, relations can have properties too.
-- **Simple Syntax:** The most simple syntaxes in all steps.
-- **Serializable:** Save whole database into one file.
-- And much more...
+### 🧩 Embedded by Design
+Graphite is not a separate service or infrastructure dependency.  
+It lives inside your project, evolves with it, and collaborates naturally with your existing code.
+
+No servers. No ports. No deployment headaches.
+
+---
+
+### 🛠 Ready-made, Customizable Module
+Graphite is intentionally simple and hackable.  
+You can fork it, modify it, or deeply integrate it into your project without fighting rigid abstractions.
+
+The database adapts to your project — not the other way around.
+
+---
+
+### 🐍 Native Python API
+Everything is done through Python APIs.
+No query strings.
+DSL parsing is just an optional layer.
+No context switching.
+
+Your editor already knows how to autocomplete and document your queries.
+
+---
+
+### 🔍 Query? It’s Code.
+Queries are built by chaining Python methods on the `QueryResult` object.
+
+- Zero parsing cost
+- Full IDE support
+- Refactor-safe
+- Debuggable
+
+---
+
+### 🔄 Runtime Evolution
+Change structures, data, or even engine behavior **at runtime**.
+No shutdowns.
+No migrations.
+No waiting.
+
+---
+
+### 🧱 Structure-Oriented Modeling
+Define:
+- node types
+- relation types
+- fields
+- base types
+- valid forms
+
+Model your domain explicitly and safely.
+
+---
+
+### 🧬 Node Inheritance
+Create base node types and extend them with shared properties and advanced relationships.
+
+---
+
+### ✨ Simple, Predictable Syntax
+From defining structures to querying data, every step favors clarity and minimal syntax.
+
+---
+
+### 💾 Serializable
+Persist the entire database into a single file.
+
+---
 
 ## Installation
-Install package from **Python Package Index**:
-```text
+
+Install from **PyPI**:
+
+```bash
 pip install graphitedb
-```
+````
+
+---
+
+## Why Graphite?
+
+Graphite was extracted from a **large production codebase** where Neo4j introduced more complexity than value.
+
+Neo4j is a powerful tool — but in large projects, adding a separate graph database often increases:
+
+* infrastructure complexity
+* deployment cost
+* maintenance burden
+* cognitive load on developers
+
+Graphite exists for cases where this cost is **not justified**.
+
+It provides graph modeling **without adding another system to operate**.
+
+---
 
 ## Example Usage
+
 ```python
 import graphite
 
 def example_complete_dsl_loading():
-	engine = graphite.engine()
+    engine = graphite.engine()
 
-	complete_dsl = """
+    complete_dsl = """
     # Define node types
     node Person
-    name: string
-    age: int
+        name: string
+        age: int
 
     node User from Person
-    id: string
-    email: string
+        id: string
+        email: string
 
     node Object
-
     node Book from Object
-    title: string
-    n_pages: int
+        title: string
+        n_pages: int
 
     node Car from Object
-    model: string
-    year: int
+        model: string
+        year: int
 
     # Define relation types
     relation FRIEND both
-    Person - Person
-    since: date
+        Person - Person
+        since: date
 
     relation OWNER reverse OWNED_BY
-    Person -> Object
-    since: date
-    purchased_at: date
+        Person -> Object
+        since: date
+        purchased_at: date
 
     relation AUTHOR reverse AUTHORED_BY
-    Person -> Book
-    year: int
+        Person -> Book
+        year: int
 
-    # Create node instances
+    # Create nodes
     User, user_1, "Joe Doe", 32, "joe4030", "joe@email.com"
     User, user_2, "Jane Smith", 28, "jane28", "jane@email.com"
     User, user_3, "Bob Wilson", 45, "bob45", "bob@email.com"
@@ -75,7 +163,7 @@ def example_complete_dsl_loading():
     Car, car_1, "Toyota Camry", 2020
     Car, car_2, "Honda Civic", 2018
 
-    # Create relation instances
+    # Create relations
     user_1 -[FRIEND, 2020-05-15]- user_2
     user_1 -[FRIEND, 2019-08-22]- user_3
     user_2 -[FRIEND, 2021-01-10]- user_4
@@ -86,48 +174,16 @@ def example_complete_dsl_loading():
 
     user_1 -[AUTHOR, 2020]-> book_3
     user_2 -[AUTHOR, 2021]-> book_2
-
-    # Alternative syntax (reverse relation)
-    book_1 -[OWNED_BY, 2019-06-20, 2019-05-10]-> user_2
-    car_2 -[OWNED_BY, 2018-12-01, 2018-11-15]-> user_4
     """
 
-	# Load all with one call
-	engine.load_dsl(complete_dsl)
+    engine.load_dsl(complete_dsl)
 
-	print("=== Database Stats ===")
-	stats = engine.stats()
-	print(f"Node Types: {stats['node_types']}")
-	print(f"Relation Types: {stats['relation_types']}")
-	print(f"Nodes: {stats['nodes']}")
-	print(f"Relations: {stats['relations']}")
+    users = engine.query.User.get()
+    print([u["name"] for u in users])
 
-	print("\n=== Query Examples ===")
-
-	# All users
-	users = engine.query.User.get()
-	print(f"All Users ({len(users)}): {[u['name'] for u in users]}")
-
-	# Users with more than 30 years age
-	older_users = engine.query.User.where("age > 30").get()
-	print(f"\nUsers over 30: {[u['name'] for u in older_users]}")
-
-	# Joe Doe books
-	joe_books = (engine.query.User
-	              .where(lambda u: u['name'] == "Joe Doe")
-	              .outgoing("AUTHOR")
-	              .get())
-	print(f"\nBooks authored by Joe Doe: {[b['title'] for b in joe_books]}")
-
-	# Two steps traverse
-	friends_of_friends = (engine.query.User
-	                      .where(lambda u: u['name'] == "Joe Doe")
-	                      .outgoing("FRIEND")
-	                      .outgoing("FRIEND")
-	                      .distinct()
-	                      .get())
-	print(f"\nFriends of friends of Joe Doe: {[f['name'] for f in friends_of_friends]}")
-
-	return engine
+    return engine
 ```
-You can see more examples in `example.py` in GitHub repo.
+
+More examples are available in `example.py` in the GitHub repository.
+::contentReference[oaicite:0]{index=0}
+```
