@@ -11,7 +11,7 @@ authors = [
 maintainers = [
     { name="Mahan Khalili", email="khalili1388mahan@gmail.com" },
 ]
-description = "A clean graph database engine"
+description = "A clean, embedded graph database engine for Python."
 readme = "README.md"
 requires-python = ">=3.9"
 classifiers = [
