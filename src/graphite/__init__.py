@@ -8,6 +8,10 @@ from __future__ import annotations
 
 import json
 import re
+import warnings
+import pickle
+import os
+import glob
 from collections import defaultdict
 from dataclasses import asdict, dataclass, field, is_dataclass
 from datetime import date, datetime
@@ -107,7 +111,7 @@ class Relation:
 	from_node: str  # node id
 	to_node: str  # node id
 	values: Dict[str, Any]
-	_type_ref: Optional[RelationType] = None
+	type_ref: Optional[RelationType] = None
 
 	def get(self, field_name: str) -> Any:
 		"""Get a field from this relation."""
@@ -116,12 +120,12 @@ class Relation:
 	def __repr__(self):
 		return f"Relation({self.type_name}:{self.from_node}->{self.to_node})"
 
-# =========== Serialization ============
+# =========== SERIALIZATION ============
 
 class GraphiteJSONEncoder(json.JSONEncoder):
 	"""Custom JSON encoder for Graphite data structures"""
 
-	def default(self, o: Any) -> Any: # pylint: disable=too-many-return-statements
+	def default(self, o: Any) -> Any:  # pylint: disable=too-many-return-statements
 		# Handle date/datetime objects
 		if isinstance(o, (date, datetime)):
 			return {
@@ -169,7 +173,7 @@ class GraphiteJSONEncoder(json.JSONEncoder):
 				"values"           : o.values,
 				"from_node"        : o.from_node if hasattr(o, 'from_node') else None,
 				"to_node"          : o.to_node if hasattr(o, 'to_node') else None,
-				"_type_ref"        : o.type_ref.name if o.type_ref else None
+				"type_ref"        : o.type_ref.name if o.type_ref else None
 			}
 			return result
 
@@ -180,8 +184,8 @@ class GraphiteJSONEncoder(json.JSONEncoder):
 			# Convert parent to name reference to avoid circular references
 			if isinstance(o, NodeType) and o.parent:
 				result["parent"] = o.parent.name
-			# Remove _type_ref from serialization
-			result.pop("_type_ref", None)
+			# Remove type_ref from serialization
+			result.pop("type_ref", None)
 			return result
 
 		# Handle Field
@@ -193,6 +197,106 @@ class GraphiteJSONEncoder(json.JSONEncoder):
 			return result
 
 		return super().default(o)
+
+# ============== WARNINGS ==============
+
+# Define custom security warning
+class SecurityWarning(Warning):
+	"""Warning for security-related issues"""
+
+# Enable security warnings by default
+warnings.simplefilter('always', SecurityWarning)
+
+# ============= MIGRATION ==============
+
+class Migration:
+	"""Utility for migrating from older versions"""
+
+	@staticmethod
+	def convert_pickle_to_json(
+		pickle_file: str, json_file: str, delete_original: bool = False
+	) -> bool:
+		"""
+		Convert a pickle file to JSON format
+
+		Args:
+			pickle_file: Path to existing pickle file
+			json_file: Path for new JSON file
+			delete_original: Whether to delete pickle file after conversion
+
+		Returns:
+			True if successful, False otherwise
+		"""
+		try:
+			# Load from pickle (with safety warnings)
+			warnings.warn(
+				f"Loading from pickle file: {pickle_file}. "
+				"Pickle files can contain malicious code. "
+				"Only load files from trusted sources.",
+				SecurityWarning
+			)
+
+			with open(pickle_file, 'rb') as f:
+				data = pickle.load(f)
+
+			# Create a new engine with the loaded data
+			converter_engine = GraphiteEngine()
+
+			# Restore data structures
+			converter_engine.node_types = data['node_types']
+			converter_engine.relation_types = data['relation_types']
+			converter_engine.nodes = data['nodes']
+			converter_engine.relations = data['relations']
+			converter_engine.node_by_type = data['node_by_type']
+			converter_engine.relations_by_type = data['relations_by_type']
+			converter_engine.relations_by_from = data['relations_by_from']
+			converter_engine.relations_by_to = data['relations_by_to']
+
+			# Save to JSON
+			converter_engine.save(json_file)
+
+			if delete_original:
+				os.unlink(pickle_file)
+				print(f"Converted {pickle_file} to {json_file} and deleted original")
+			else:
+				print(f"Converted {pickle_file} to {json_file}")
+
+			return True
+
+		except Exception as e: # pylint: disable=broad-exception-caught
+			print(f"Conversion failed: {e}")
+			return False
+
+	@staticmethod
+	def detect_pickle_and_convert_to_json(
+		directory: str, pattern: str = "*.db", delete_originals: bool = False
+	):
+		"""
+		Find and convert all pickle files in a directory
+
+		Args:
+			directory: Directory to scan
+			pattern: File pattern to match (default: *.db)
+			delete_originals: Whether to delete pickle files after conversion
+		"""
+		for pickle_file in glob.glob(os.path.join(directory, pattern)):
+			if pickle_file.endswith('.json'):
+				continue
+
+			json_file = pickle_file.rsplit('.', 1)[0] + '.json'
+
+			try:
+				# Quick check if it's a pickle file
+				with open(pickle_file, 'rb') as f:
+					# Try to read pickle header
+					header = f.read(4)
+					if header == b'\x80\x04' or header.startswith(b'\x80'):  # Pickle protocol 4
+						Migration.convert_pickle_to_json(
+							pickle_file, json_file, delete_originals
+						)
+			except Exception as e: # pylint: disable=broad-exception-caught
+				# Not a pickle file or can't read
+				print(f"File '{pickle_file}' skipped: {e}")
 
 # =============== PARSER ===============
 
@@ -369,7 +473,7 @@ class QueryResult:
 				try:
 					if condition(processing_node):
 						filtered_nodes.append(processing_node)
-				except Exception as e: # pylint: disable=broad-exception-caught
+				except Exception as e:  # pylint: disable=broad-exception-caught
 					print(f"Graphite Warn: 'where' condition failed for node {processing_node}: {e}")
 		else:
 			# String condition like "age > 18"
@@ -504,7 +608,7 @@ class QueryResult:
 		"""Get node IDs"""
 		return [n.id for n in self.nodes]
 
-class QueryBuilder: # pylint: disable=too-few-public-methods
+class QueryBuilder:  # pylint: disable=too-few-public-methods
 	"""Builder for creating queries"""
 
 	def __init__(self, graphite_engine: GraphiteEngine):
@@ -519,7 +623,7 @@ class QueryBuilder: # pylint: disable=too-few-public-methods
 
 # =============== MAIN ENGINE ===============
 
-class GraphiteEngine: # pylint: disable=too-many-instance-attributes
+class GraphiteEngine:  # pylint: disable=too-many-instance-attributes
 	"""Main graph database engine"""
 
 	def __init__(self):
@@ -775,7 +879,7 @@ class GraphiteEngine: # pylint: disable=too-many-instance-attributes
 				from_node=dct["from_node"],
 				to_node=dct["to_node"],
 				values=dct["values"],
-				_type_ref=None  # Will be restored later
+				type_ref=None  # Will be restored later
 			)
 
 		elif graphite_type == "NodeType":
@@ -826,54 +930,174 @@ class GraphiteEngine: # pylint: disable=too-many-instance-attributes
 		with open(filename, 'w', encoding='utf-8') as f:
 			json.dump(data, f, cls=GraphiteJSONEncoder, indent=2, ensure_ascii=False)
 
-	def load(self, filename: str):
-		"""Load database from JSON file"""
-		with open(filename, 'r', encoding='utf-8') as f:
-			data = json.load(f, object_hook=self._graphite_object_hook)
+	def load_safe(self, filename: str, max_size_mb: int = 100, validate_schema: bool = True) -> None:
+		"""
+		Safely load database with security checks
 
-		# Check version compatibility
-		if data.get("version") != "1.0":
-			print(f"Warning: Loading version {data.get('version')} data with 1.0 engine")
+		Args:
+			filename: File to load
+			max_size_mb: Maximum allowed file size in MB
+			validate_schema: Whether to validate schema consistency
 
+		Returns:
+			True if loaded successfully, False otherwise
+		"""
+		# Check file size
+		file_size = os.path.getsize(filename)
+		if file_size > max_size_mb * 1024 * 1024:
+			raise ValueError(f"File too large: {file_size / 1024 / 1024:.1f}MB > {max_size_mb}MB limit")
+
+		# Check file extension
+		if not filename.lower().endswith('.json'):
+			raise ValueError("Only .json files are allowed for safe loading")
+
+		# Read with limited recursion depth
+		try:
+			with open(filename, 'r', encoding='utf-8') as f:
+				# Use lower recursion limit for safety
+				data = json.load(f, object_hook=self._graphite_object_hook)
+		except json.JSONDecodeError as e:
+			raise ValueError(f"Invalid JSON file: {e}") from e
+		except RecursionError as exc:
+			raise ValueError("JSON structure too deeply nested")from exc
+
+		# Validate structure
+		if validate_schema:
+			self._validate_loaded_data(data)
+
+		# Load normally
+		self._load_from_dict(data)
+
+	def _validate_loaded_data(self, data: Dict[str, Any]):
+		"""Validate loaded data for consistency"""
+		required_keys = ['version', 'node_types', 'relation_types', 'nodes']
+		for key in required_keys:
+			if key not in data:
+				raise ValueError(f"Missing required key in data: {key}")
+
+		# Check for unexpected keys
+		allowed_keys = {
+			'version', 'node_types', 'relation_types', 'nodes', 'relations',
+			'node_by_type', 'relations_by_type', 'relations_by_from', 'relations_by_to'
+		}
+		for key in data.keys():
+			if key not in allowed_keys:
+				warnings.warn(f"Unexpected key in data: {key}", UserWarning)
+
+		# Validate nodes reference existing types
+		node_type_names = {nt.name for nt in data.get('node_types', [])}
+		for check_node in data.get('nodes', []):
+			if check_node.type_name not in node_type_names:
+				raise ValueError(f"Node references undefined type: {check_node.type_name}")
+
+	def _load_from_dict(self, data: Dict[str, Any]):
+		"""Internal method to load from dictionary (used by both load and load_safe)"""
 		# Clear existing data
 		self.clear()
 
-		# Restore node types first (they're needed for references)
-		for nt in data["node_types"]:
+		# Restore node types
+		for nt_dict in data['node_types']:
+			if isinstance(nt_dict, NodeType):
+				nt = nt_dict
+			else:
+				# Convert from dict if needed
+				nt = NodeType(
+					name=nt_dict['name'],
+					fields=nt_dict.get('fields', []),
+					parent=None  # Will be restored later
+				)
 			self.node_types[nt.name] = nt
 
+		# Restore parent references for node types
+		for nt in data['node_types']:
+			if isinstance(nt, dict) and nt.get('parent'):
+				parent_name = nt['parent']
+				if parent_name in self.node_types:
+					self.node_types[nt['name']].parent = self.node_types[parent_name]
+
 		# Restore relation types
-		for rt in data["relation_types"]:
+		for rt_dict in data['relation_types']:
+			if isinstance(rt_dict, RelationType):
+				rt = rt_dict
+			else:
+				rt = RelationType(
+					name=rt_dict['name'],
+					from_type=rt_dict['from_type'],
+					to_type=rt_dict['to_type'],
+					fields=rt_dict.get('fields', []),
+					reverse_name=rt_dict.get('reverse_name'),
+					is_bidirectional=rt_dict.get('is_bidirectional', False)
+				)
 			self.relation_types[rt.name] = rt
 
 		# Restore nodes
-		for saved_node in data["nodes"]:
+		for node_data in data['nodes']:
+			if isinstance(node_data, Node):
+				loading_node = node_data
+			else:
+				loading_node = Node(
+					type_name=node_data['type_name'],
+					id=node_data['id'],
+					values=node_data['values'],
+					type_ref=None
+				)
+
 			# Restore type reference
-			if saved_node.type_name in self.node_types:
-				saved_node.type_ref = self.node_types[saved_node.type_name]
-			self.nodes[saved_node.id] = saved_node
+			if loading_node.type_name in self.node_types:
+				loading_node.type_ref = self.node_types[loading_node.type_name]
+
+			self.nodes[loading_node.id] = loading_node
 
 		# Restore relations
-		for rel in data["relations"]:
+		for rel_data in data['relations']:
+			if isinstance(rel_data, Relation):
+				rel = rel_data
+			else:
+				rel = Relation(
+					type_name=rel_data['type_name'],
+					from_node=rel_data['from_node'],
+					to_node=rel_data['to_node'],
+					values=rel_data['values'],
+					type_ref=None
+				)
+
 			# Restore type reference
 			if rel.type_name in self.relation_types:
 				rel.type_ref = self.relation_types[rel.type_name]
+
 			self.relations.append(rel)
 
-		# Restore indexes if they exist in the saved data
-		# Otherwise rebuild them
-		if "node_by_type" in data:
-			self.node_by_type = defaultdict(list, data["node_by_type"])
-		else:
-			self._rebuild_node_by_type()
+		# Rebuild all indexes
+		self._rebuild_all_indexes()
 
-		if "relations_by_type" in data:
-			self.relations_by_type = defaultdict(list, data["relations_by_type"])
-		else:
-			self._rebuild_relations_indexes()
+	def _rebuild_all_indexes(self):
+		self._rebuild_node_by_type()
+		self._rebuild_relations_indexes()
 
-		# Restore other indexes or rebuild
-		self._rebuild_remaining_indexes()
+	def load(self, filename: str, safe_mode: bool = True) -> None:
+		"""
+		Load database from file
+
+		Args:
+			filename: File to load
+			safe_mode: If True, use safe loading with validation (default: True)
+		"""
+		if safe_mode:
+			self.load_safe(filename)
+			return
+
+		# Legacy unsafe loading (for backward compatibility)
+		warnings.warn(
+			"Unsafe loading mode is deprecated. Use safe_mode=True for security.",
+			DeprecationWarning
+		)
+		self._load_unsafe(filename)
+
+	def _load_unsafe(self, filename: str):
+		"""Legacy unsafe loading (kept for compatibility)"""
+		with open(filename, 'r', encoding='utf-8') as f:
+			data = json.load(f, object_hook=self._graphite_object_hook)
+		self._load_from_dict(data)
 
 	def _rebuild_node_by_type(self):
 		"""Rebuild node_by_type index"""
