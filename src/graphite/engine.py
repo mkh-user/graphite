@@ -479,8 +479,9 @@ class GraphiteEngine:  # pylint: disable=too-many-instance-attributes
 
 		# Legacy unsafe loading (for backward compatibility)
 		warnings.warn(
-			"Unsafe loading mode is deprecated. Use safe_mode=True for security.",
-			DeprecationWarning
+			"Unsafe loading mode will be deprecated in next versions. Use safe_mode=True for security. "
+			"You can use 'graphite.Migration.convert_pickle_to_json()' to update your database.",
+			PendingDeprecationWarning
 		)
 		self._load_unsafe(filename)
 
