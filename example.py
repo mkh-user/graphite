@@ -3,6 +3,7 @@ Example usages of Graphite in separate functions. You can run a function to see 
 """
 # noinspection PyPackageRequirements
 import graphite # pylint: disable=import-error
+# import src.graphite as graphite # Just for test dev version
 
 # =============== EXAMPLE COMPLETE DSL LOADING ===============
 

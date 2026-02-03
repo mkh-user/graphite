@@ -4,6 +4,7 @@ Runs a generic example for Graphite module.
 from datetime import date
 # noinspection PyPackageRequirements
 import graphite # pylint: disable=import-error
+# import src.graphite as graphite # Just for test dev version
 
 engine = graphite.engine()
 

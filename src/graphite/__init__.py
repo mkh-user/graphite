@@ -6,10 +6,10 @@ You can use it with ``import graphite``.
 """
 from __future__ import annotations
 
-import pickle
+import json
 import re
 from collections import defaultdict
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field, is_dataclass
 from datetime import date, datetime
 from enum import Enum
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
@@ -85,7 +85,7 @@ class Node:
 	type_name: str
 	id: str
 	values: Dict[str, Any]
-	_type_ref: Optional[NodeType] = None
+	type_ref: Optional[NodeType] = None
 
 	def get(self, field_name: str) -> Any:
 		"""Get a field from this node."""
@@ -115,6 +115,84 @@ class Relation:
 
 	def __repr__(self):
 		return f"Relation({self.type_name}:{self.from_node}->{self.to_node})"
+
+# =========== Serialization ============
+
+class GraphiteJSONEncoder(json.JSONEncoder):
+	"""Custom JSON encoder for Graphite data structures"""
+
+	def default(self, o: Any) -> Any: # pylint: disable=too-many-return-statements
+		# Handle date/datetime objects
+		if isinstance(o, (date, datetime)):
+			return {
+				"__graphite_type__": "datetime",
+				"value"            : o.isoformat(),
+				"is_date"          : isinstance(o, date)
+			}
+
+		# Handle Enum objects
+		if isinstance(o, Enum):
+			return {
+				"__graphite_type__": "enum",
+				"enum_class"       : type(o).__name__,
+				"value"            : o.value
+			}
+
+		# Handle DataType enum specifically
+		if isinstance(o, DataType):
+			return {
+				"__graphite_type__": "datatype",
+				"value"            : o.value
+			}
+
+		# Handle dataclasses
+		if is_dataclass(o) and not isinstance(o, type):
+			# Convert to dict and add type info
+			result = asdict(o)
+			result["__graphite_type__"] = type(o).__name__
+			return result
+
+		# Handle defaultdict
+		if isinstance(o, defaultdict):
+			result = dict(o)
+			result["__graphite_type__"] = "defaultdict"
+			result["__default_factory"] = o.default_factory.__name__ if o.default_factory else None
+			return result
+
+		# Handle Node and Relation instances (already dataclasses but need special handling)
+		if isinstance(o, (Node, Relation)):
+			# Convert to dict with minimal information
+			result = {
+				"__graphite_type__": type(o).__name__,
+				"type_name"        : o.type_name,
+				"id"               : o.id if hasattr(o, 'id') else None,
+				"values"           : o.values,
+				"from_node"        : o.from_node if hasattr(o, 'from_node') else None,
+				"to_node"          : o.to_node if hasattr(o, 'to_node') else None,
+				"_type_ref"        : o.type_ref.name if o.type_ref else None
+			}
+			return result
+
+		# Handle NodeType and RelationType (dataclasses with parent references)
+		if isinstance(o, (NodeType, RelationType)):
+			result = asdict(o)
+			result["__graphite_type__"] = type(o).__name__
+			# Convert parent to name reference to avoid circular references
+			if isinstance(o, NodeType) and o.parent:
+				result["parent"] = o.parent.name
+			# Remove _type_ref from serialization
+			result.pop("_type_ref", None)
+			return result
+
+		# Handle Field
+		if isinstance(o, Field):
+			result = asdict(o)
+			result["__graphite_type__"] = "Field"
+			# Convert dtype to value
+			result["dtype"] = o.dtype.value
+			return result
+
+		return super().default(o)
 
 # =============== PARSER ===============
 
@@ -170,7 +248,6 @@ class GraphiteParser:
 			parts = first_line.split(' reverse ')
 			relation_name = parts[0].replace('relation', '').strip()
 			reverse_name = parts[1].strip()
-			first_line = parts[0]
 		else:
 			relation_name = first_line.replace('relation', '').strip()
 
@@ -303,7 +380,8 @@ class QueryResult:
 		return QueryResult(self.engine, filtered_nodes, self.edges)
 
 	# pylint: disable=too-many-branches
-	def _evaluate_condition(self, target_node: Node, condition: str) -> bool:
+	@staticmethod
+	def _evaluate_condition(target_node: Node, condition: str) -> bool:
 		"""Evaluate a condition string on a node"""
 		# Simple condition parser
 		ops = ['>=', '<=', '!=', '==', '>', '<', '=']
@@ -405,7 +483,7 @@ class QueryResult:
 
 		def get_key(from_node):
 			val = from_node.get(by_field)
-			return (val is None, val)
+			return val is None, val
 
 		sorted_nodes = sorted(self.nodes, key=get_key, reverse=descending)
 		return QueryResult(self.engine, sorted_nodes, self.edges)
@@ -645,34 +723,184 @@ class GraphiteEngine: # pylint: disable=too-many-instance-attributes
 
 	# =============== PERSISTENCE ===============
 
+	# pylint: disable=too-many-return-statements, too-many-branches
+	@staticmethod
+	def _graphite_object_hook(dct: Dict[str, Any]) -> Any:
+		"""Object hook for decoding Graphite objects from JSON"""
+		if "__graphite_type__" not in dct:
+			return dct
+
+		graphite_type = dct.pop("__graphite_type__")
+
+		if graphite_type == "datetime":
+			# Restore date/datetime objects
+			value = dct["value"]
+			if dct.get("is_date"):
+				return date.fromisoformat(value)
+			return datetime.fromisoformat(value)
+
+		if graphite_type == "enum":
+			# Restore Enum objects
+			enum_class = dct["enum_class"]
+			value = dct["value"]
+			if enum_class == "DataType":
+				return DataType(value)
+		# Add other enum classes as needed
+
+		elif graphite_type == "datatype":
+			# Restore DataType enum
+			return DataType(dct["value"])
+
+		elif graphite_type == "defaultdict":
+			# Restore defaultdict
+			result = defaultdict(list if dct["__default_factory"] == "list" else dict)
+			dct.pop("__default_factory", None)
+			dct.pop("__graphite_type__", None)
+			result.update(dct)
+			return result
+
+		elif graphite_type == "Node":
+			# Create Node instance (type_ref will be restored later)
+			return Node(
+				type_name=dct["type_name"],
+				id=dct["id"],
+				values=dct["values"],
+				type_ref=None  # Will be restored later
+			)
+
+		elif graphite_type == "Relation":
+			# Create Relation instance (type_ref will be restored later)
+			return Relation(
+				type_name=dct["type_name"],
+				from_node=dct["from_node"],
+				to_node=dct["to_node"],
+				values=dct["values"],
+				_type_ref=None  # Will be restored later
+			)
+
+		elif graphite_type == "NodeType":
+			# Create NodeType instance (parent will be restored later)
+			return NodeType(
+				name=dct["name"],
+				fields=dct.get("fields", []),
+				parent=None  # Will be restored later
+			)
+
+		elif graphite_type == "RelationType":
+			# Create RelationType instance
+			return RelationType(
+				name=dct["name"],
+				from_type=dct["from_type"],
+				to_type=dct["to_type"],
+				fields=dct.get("fields", []),
+				reverse_name=dct.get("reverse_name"),
+				is_bidirectional=dct.get("is_bidirectional", False)
+			)
+
+		elif graphite_type == "Field":
+			# Create Field instance
+			return Field(
+				name=dct["name"],
+				dtype=DataType(dct["dtype"]),
+				default=dct.get("default")
+			)
+
+		return dct
+
 	def save(self, filename: str):
-		"""Save database to file"""
-		with open(filename, 'wb') as f:
-			data = {
-				'node_types'       : self.node_types,
-				'relation_types'   : self.relation_types,
-				'nodes'            : self.nodes,
-				'relations'        : self.relations,
-				'node_by_type'     : self.node_by_type,
-				'relations_by_type': self.relations_by_type,
-				'relations_by_from': self.relations_by_from,
-				'relations_by_to'  : self.relations_by_to,
-			}
-			# noinspection PyTypeChecker
-			pickle.dump(data, f)
+		"""Save database to file using JSON"""
+		# Prepare data structure
+		data = {
+			"version"          : "1.0",
+			"node_types"       : list(self.node_types.values()),
+			"relation_types"   : list(self.relation_types.values()),
+			"nodes"            : list(self.nodes.values()),
+			"relations"        : self.relations,
+			# Convert defaultdicts to regular dicts for JSON
+			"node_by_type"     : dict(self.node_by_type.items()),
+			"relations_by_type": dict(self.relations_by_type.items()),
+			"relations_by_from": dict(self.relations_by_from.items()),
+			"relations_by_to"  : dict(self.relations_by_to.items()),
+		}
+
+		with open(filename, 'w', encoding='utf-8') as f:
+			json.dump(data, f, cls=GraphiteJSONEncoder, indent=2, ensure_ascii=False)
 
 	def load(self, filename: str):
-		"""Load database from file"""
-		with open(filename, 'rb') as f:
-			data = pickle.load(f)
-			self.node_types = data['node_types']
-			self.relation_types = data['relation_types']
-			self.nodes = data['nodes']
-			self.relations = data['relations']
-			self.node_by_type = data['node_by_type']
-			self.relations_by_type = data['relations_by_type']
-			self.relations_by_from = data['relations_by_from']
-			self.relations_by_to = data['relations_by_to']
+		"""Load database from JSON file"""
+		with open(filename, 'r', encoding='utf-8') as f:
+			data = json.load(f, object_hook=self._graphite_object_hook)
+
+		# Check version compatibility
+		if data.get("version") != "1.0":
+			print(f"Warning: Loading version {data.get('version')} data with 1.0 engine")
+
+		# Clear existing data
+		self.clear()
+
+		# Restore node types first (they're needed for references)
+		for nt in data["node_types"]:
+			self.node_types[nt.name] = nt
+
+		# Restore relation types
+		for rt in data["relation_types"]:
+			self.relation_types[rt.name] = rt
+
+		# Restore nodes
+		for saved_node in data["nodes"]:
+			# Restore type reference
+			if saved_node.type_name in self.node_types:
+				saved_node.type_ref = self.node_types[saved_node.type_name]
+			self.nodes[saved_node.id] = saved_node
+
+		# Restore relations
+		for rel in data["relations"]:
+			# Restore type reference
+			if rel.type_name in self.relation_types:
+				rel.type_ref = self.relation_types[rel.type_name]
+			self.relations.append(rel)
+
+		# Restore indexes if they exist in the saved data
+		# Otherwise rebuild them
+		if "node_by_type" in data:
+			self.node_by_type = defaultdict(list, data["node_by_type"])
+		else:
+			self._rebuild_node_by_type()
+
+		if "relations_by_type" in data:
+			self.relations_by_type = defaultdict(list, data["relations_by_type"])
+		else:
+			self._rebuild_relations_indexes()
+
+		# Restore other indexes or rebuild
+		self._rebuild_remaining_indexes()
+
+	def _rebuild_node_by_type(self):
+		"""Rebuild node_by_type index"""
+		self.node_by_type = defaultdict(list)
+		for node_instance in self.nodes.values():
+			self.node_by_type[node_instance.type_name].append(node_instance)
+
+	def _rebuild_relations_indexes(self):
+		"""Rebuild all relation indexes"""
+		self.relations_by_type = defaultdict(list)
+		self.relations_by_from = defaultdict(list)
+		self.relations_by_to = defaultdict(list)
+
+		for rel in self.relations:
+			self.relations_by_type[rel.type_name].append(rel)
+			self.relations_by_from[rel.from_node].append(rel)
+			self.relations_by_to[rel.to_node].append(rel)
+
+	def _rebuild_remaining_indexes(self):
+		"""Rebuild indexes that might not be in the saved data"""
+		# Ensure relations_by_from and relations_by_to are built
+		if not self.relations_by_from or not self.relations_by_to:
+			self.relations_by_from = defaultdict(list)
+			self.relations_by_to = defaultdict(list)
+			for rel in self.relations:
+				self.relations_by_from[rel.from_node].append(rel)
+				self.relations_by_to[rel.to_node].append(rel)
 
 	# =============== UTILITY METHODS ===============
 
@@ -699,7 +927,7 @@ class GraphiteEngine: # pylint: disable=too-many-instance-attributes
 	# =============== SYNTAX SUGAR ===============
 
 	def parse(self, data: str):
-		"""Parse data into nodes and relations (strcuture or data)"""
+		"""Parse data into nodes and relations (structure or data)"""
 		self.load_dsl(data)
 
 # =============== SYNTAX SUGAR ===============
