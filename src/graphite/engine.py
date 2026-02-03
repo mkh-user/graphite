@@ -7,6 +7,11 @@ import os
 from collections import defaultdict
 from datetime import datetime, date
 from typing import Dict, List, Optional, Any
+
+from .exceptions import (
+	FileSizeError, InvalidJSONError, InvalidPropertiesError, NotFoundError, DateParseError,
+	SafeLoadExtensionError, TooNestedJSONError, ValidationError,
+)
 from .types import NodeType, RelationType, Field, DataType
 from .instances import Node, Relation
 from .parser import GraphiteParser
@@ -37,7 +42,10 @@ class GraphiteEngine:  # pylint: disable=too-many-instance-attributes
 		parent = None
 		if parent_name:
 			if parent_name not in self.node_types:
-				raise ValueError(f"Parent node type '{parent_name}' not found")
+				raise NotFoundError(
+					"Parent node type",
+					parent_name,
+				)
 			parent = self.node_types[parent_name]
 
 		node_type = NodeType(node_name, fields, parent)
@@ -50,9 +58,15 @@ class GraphiteEngine:  # pylint: disable=too-many-instance-attributes
 
 		# Validate node types exist
 		if from_type not in self.node_types:
-			raise ValueError(f"Node type '{from_type}' not found")
+			raise NotFoundError(
+				"Node type",
+				from_type,
+			)
 		if to_type not in self.node_types:
-			raise ValueError(f"Node type '{to_type}' not found")
+			raise NotFoundError(
+				"Node type",
+				to_type,
+			)
 
 		rel_type = RelationType(
 			rel_name, from_type, to_type,
@@ -73,13 +87,19 @@ class GraphiteEngine:  # pylint: disable=too-many-instance-attributes
 	def create_node(self, node_type: str, node_id: str, *values) -> Node:
 		"""Create a node instance"""
 		if node_type not in self.node_types:
-			raise ValueError(f"Node type '{node_type}' not defined")
+			raise NotFoundError(
+				"Node type",
+				node_type
+			)
 
 		node_type_obj = self.node_types[node_type]
 		all_fields = node_type_obj.get_all_fields()
 
 		if len(values) != len(all_fields):
-			raise ValueError(f"Expected {len(all_fields)} values, got {len(values)}")
+			raise InvalidPropertiesError(
+				all_fields,
+				len(values)
+			)
 
 		# Create values dictionary
 		node_values = {}
@@ -89,7 +109,7 @@ class GraphiteEngine:  # pylint: disable=too-many-instance-attributes
 				try:
 					value = datetime.strptime(value, "%Y-%m-%d").date()
 				except Exception as e:
-					raise ValueError(f"'{e}' while parsing date string: {value}") from e
+					raise DateParseError(value) from e
 			node_values[current_field.name] = value
 
 		new_node = Node(node_type, node_id, node_values, node_type_obj)
@@ -100,15 +120,24 @@ class GraphiteEngine:  # pylint: disable=too-many-instance-attributes
 	def create_relation(self, from_id: str, to_id: str, rel_type: str, *values) -> Relation:
 		"""Create a relation instance"""
 		if rel_type not in self.relation_types:
-			raise ValueError(f"Relation type '{rel_type}' not defined")
+			raise NotFoundError(
+				"Relation type",
+				rel_type,
+			)
 
 		rel_type_obj = self.relation_types[rel_type]
 
 		# Check if nodes exist
 		if from_id not in self.nodes:
-			raise ValueError(f"Node '{from_id}' not found")
+			raise NotFoundError(
+				"Node",
+				from_id,
+			)
 		if to_id not in self.nodes:
-			raise ValueError(f"Node '{to_id}' not found")
+			raise NotFoundError(
+				"Node",
+				to_id
+			)
 
 		# Create values dictionary
 		rel_values = {}
@@ -119,7 +148,7 @@ class GraphiteEngine:  # pylint: disable=too-many-instance-attributes
 					try:
 						value = datetime.strptime(value, "%Y-%m-%d").date()
 					except Exception as e:
-						raise ValueError(f"'{e}' while parsing date string: {value}") from e
+						raise DateParseError(value) from e
 				rel_values[rel_field.name] = value
 
 		new_relation = Relation(rel_type, from_id, to_id, rel_values, rel_type_obj)
@@ -318,6 +347,7 @@ class GraphiteEngine:  # pylint: disable=too-many-instance-attributes
 		}
 
 		with open(filename, 'w', encoding='utf-8') as f:
+			# noinspection PyTypeChecker
 			json.dump(data, f, cls=GraphiteJSONEncoder, indent=2, ensure_ascii=False)
 
 	def load_safe(self, filename: str, max_size_mb: int = 100, validate_schema: bool = True) -> None:
@@ -335,11 +365,14 @@ class GraphiteEngine:  # pylint: disable=too-many-instance-attributes
 		# Check file size
 		file_size = os.path.getsize(filename)
 		if file_size > max_size_mb * 1024 * 1024:
-			raise ValueError(f"File too large: {file_size / 1024 / 1024:.1f}MB > {max_size_mb}MB limit")
+			raise FileSizeError(
+				file_size / 1024 / 1024,
+				max_size_mb
+			)
 
 		# Check file extension
 		if not filename.lower().endswith('.json'):
-			raise ValueError("Only .json files are allowed for safe loading")
+			raise SafeLoadExtensionError()
 
 		# Read with limited recursion depth
 		try:
@@ -347,9 +380,9 @@ class GraphiteEngine:  # pylint: disable=too-many-instance-attributes
 				# Use lower recursion limit for safety
 				data = json.load(f, object_hook=self._graphite_object_hook)
 		except json.JSONDecodeError as e:
-			raise ValueError(f"Invalid JSON file: {e}") from e
+			raise InvalidJSONError() from e
 		except RecursionError as exc:
-			raise ValueError("JSON structure too deeply nested")from exc
+			raise TooNestedJSONError() from exc
 
 		# Validate structure
 		if validate_schema:
@@ -364,7 +397,11 @@ class GraphiteEngine:  # pylint: disable=too-many-instance-attributes
 		required_keys = ['version', 'node_types', 'relation_types', 'nodes']
 		for key in required_keys:
 			if key not in data:
-				raise ValueError(f"Missing required key in data: {key}")
+				raise ValidationError(
+					f"Missing required key {key}",
+					key,
+					"'Missing'"
+				)
 
 		# Check for unexpected keys
 		allowed_keys = {
@@ -379,7 +416,10 @@ class GraphiteEngine:  # pylint: disable=too-many-instance-attributes
 		node_type_names = {nt.name for nt in data.get('node_types', [])}
 		for check_node in data.get('nodes', []):
 			if check_node.type_name not in node_type_names:
-				raise ValueError(f"Node references undefined type: {check_node.type_name}")
+				raise NotFoundError(
+					"Node type",
+					check_node.type_name,
+				)
 
 	def _load_from_dict(self, data: Dict[str, Any]):
 		"""Internal method to load from dictionary (used by both load and load_safe)"""

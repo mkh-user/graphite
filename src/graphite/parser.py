@@ -4,6 +4,7 @@ Parser for Graphite DSL
 import re
 from typing import Any, List, Optional, Tuple
 
+from .exceptions import SchemaError
 from .types import DataType, Field
 
 class GraphiteParser:
@@ -72,7 +73,7 @@ class GraphiteParser:
 			from_type = parts[0].strip()
 			to_type = parts[2].strip() if len(parts) > 2 else parts[1].strip()
 		else:
-			raise ValueError(f"Invalid relation format: {participants_line}")
+			raise SchemaError(f"Invalid relation type format: {participants_line}")
 
 		# Parse fields
 		fields = []
@@ -136,7 +137,7 @@ class GraphiteParser:
 		pattern = r'(\w+)\s*(-\[([^\]]+)\]\s*[->-]\s*|\s*[->-]\s*\[([^\]]+)\]\s*->\s*)(\w+)'
 		match = re.search(pattern, line)
 		if not match:
-			raise ValueError(f"Invalid relation format: {line}")
+			raise SchemaError(f"Invalid relation format: {line}")
 
 		from_node = match.group(1)
 		to_node = match.group(5)

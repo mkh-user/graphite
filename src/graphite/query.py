@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, List, Callable, Optional, Union
 
 from .instances import Node, Relation
 from .types import RelationType
+from .exceptions import ConditionError, NotFoundError
 
 if TYPE_CHECKING:
 	from .engine import GraphiteEngine
@@ -84,7 +85,7 @@ class QueryResult:
 				if op == '<=':
 					result = node_value <= right_value
 				if result is None:
-					raise ValueError(f"Invalid condition string: {condition}")
+					raise ConditionError(condition)
 				return result
 
 		return False
@@ -177,4 +178,7 @@ class QueryBuilder:  # pylint: disable=too-few-public-methods
 		if name in self.engine.node_types:
 			nodes = self.engine.get_nodes_of_type(name)
 			return QueryResult(self.engine, nodes)
-		raise AttributeError(f"No node type '{name}' found")
+		raise NotFoundError(
+			"Node type",
+			name
+		)
