@@ -6,7 +6,7 @@ from collections import defaultdict
 from dataclasses import asdict, is_dataclass
 from datetime import date, datetime
 from enum import Enum
-from typing import Any, Callable
+from typing import Any, Callable, Union
 
 from .instances import Node, Relation
 from .types import DataType, Field, NodeType, RelationType
@@ -14,7 +14,7 @@ from .types import DataType, Field, NodeType, RelationType
 GRAPHITE_TYPE_FIELD = "__graphite_type__"
 DEFAULT_FACTORY_FIELD = "__default_factory"
 
-def _serialize_instance(instance: Node | Relation) -> dict[str, Any]:
+def _serialize_instance(instance: Union[Node, Relation]) -> dict[str, Any]:
 	return {
 		GRAPHITE_TYPE_FIELD: type(instance).__name__,
 		"type_name"        : instance.type_name,
@@ -121,7 +121,7 @@ def graphite_object_hook(dct: dict[str, Any]) -> Any:  # pylint: disable=too-man
 
 	if graphite_type == "defaultdict":
 		factory_name = dct.pop(DEFAULT_FACTORY_FIELD, None)
-		factory: Callable[[], Any] | None = None
+		factory: Union[Callable[[], Any], None] = None
 		if factory_name == "list":
 			factory = list
 		elif factory_name == "dict":

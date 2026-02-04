@@ -3,7 +3,7 @@ Possible exceptions in Graphite
 """
 from typing import Any
 
-from src.graphite import Field
+from src.graphite.types import Field
 
 class GraphiteError(Exception):
 	"""Base exception for all Graphite errors"""

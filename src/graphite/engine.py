@@ -5,7 +5,7 @@ import json
 import warnings
 import os
 from collections import defaultdict
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional, Any, Union
 
 from .exceptions import (
 	FileSizeError, InvalidJSONError, InvalidPropertiesError, NotFoundError,
@@ -258,7 +258,7 @@ class GraphiteEngine:  # pylint: disable=too-many-instance-attributes
 			json.dump(data, f, cls=GraphiteJSONEncoder, indent=2, ensure_ascii=False)
 
 	def load_safe(
-		self, filename: str, max_size_mb: int | float = 100, validate_schema: bool = True
+		self, filename: str, max_size_mb: Union[int, float] = 100, validate_schema: bool = True
 	) -> None:
 		"""
 		Safely load database with security checks

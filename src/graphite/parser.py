@@ -3,7 +3,7 @@ Parser for Graphite DSL
 """
 import re
 from datetime import date, datetime
-from typing import Any, List, Optional, Tuple
+from typing import Any, List, Optional, Tuple, Union
 
 from .exceptions import DateParseError, FieldError, NotFoundError, SchemaError
 from .types import DataType, Field
@@ -198,7 +198,9 @@ class GraphiteParser:
 		return node_type, node_id, values
 
 	@staticmethod
-	def parse_relation_instance(line: str) -> tuple[str | Any, str | Any, Any, list[Any], str]:
+	def parse_relation_instance(
+		line: str
+	) -> tuple[Union[str, Any], Union[str, Any], Any, list[Any], str]:
 		"""Parse relation instance: 'user_1 -[OWNER, 2000-10-04]-> notebook'"""
 		# Extract relation type and attributes
 		pattern = r'(\w+)\s*(-\[([^\]]+)\]\s*[->-]\s*|\s*[->-]\s*\[([^\]]+)\]\s*->\s*)(\w+)'
