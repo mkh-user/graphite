@@ -5,18 +5,17 @@ import json
 import warnings
 import os
 from collections import defaultdict
-from datetime import datetime, date
 from typing import Dict, List, Optional, Any
 
 from .exceptions import (
 	FileSizeError, InvalidJSONError, InvalidPropertiesError, NotFoundError,
 	SafeLoadExtensionError, TooNestedJSONError, ValidationError,
 )
-from .types import NodeType, RelationType, Field, DataType
+from .types import NodeType, RelationType
 from .instances import Node, Relation
 from .parser import GraphiteParser
 from .query import QueryBuilder
-from .serialization import GraphiteJSONEncoder
+from .serialization import GraphiteJSONEncoder, graphite_object_hook
 
 class GraphiteEngine:  # pylint: disable=too-many-instance-attributes
 	"""Main graph database engine"""
@@ -246,106 +245,14 @@ class GraphiteEngine:  # pylint: disable=too-many-instance-attributes
 
 	# =============== PERSISTENCE ===============
 
-	# pylint: disable=too-many-return-statements, too-many-branches
 	@staticmethod
 	def _graphite_object_hook(dct: Dict[str, Any]) -> Any:
-		"""Object hook for decoding Graphite objects from JSON"""
-		if "__graphite_type__" not in dct:
-			return dct
-
-		graphite_type = dct.pop("__graphite_type__")
-
-		if graphite_type == "datetime":
-			# Restore date/datetime objects
-			value = dct["value"]
-			if dct.get("is_date"):
-				return date.fromisoformat(value)
-			return datetime.fromisoformat(value)
-
-		if graphite_type == "enum":
-			# Restore Enum objects
-			enum_class = dct["enum_class"]
-			value = dct["value"]
-			if enum_class == "DataType":
-				return DataType(value)
-		# Add other enum classes as needed
-
-		elif graphite_type == "datatype":
-			# Restore DataType enum
-			return DataType(dct["value"])
-
-		elif graphite_type == "defaultdict":
-			# Restore defaultdict
-			result = defaultdict(list if dct["__default_factory"] == "list" else dict)
-			dct.pop("__default_factory", None)
-			dct.pop("__graphite_type__", None)
-			result.update(dct)
-			return result
-
-		elif graphite_type == "Node":
-			# Create Node instance (type_ref will be restored later)
-			return Node(
-				type_name=dct["type_name"],
-				id=dct["id"],
-				values=dct["values"],
-				type_ref=None  # Will be restored later
-			)
-
-		elif graphite_type == "Relation":
-			# Create Relation instance (type_ref will be restored later)
-			return Relation(
-				type_name=dct["type_name"],
-				from_node=dct["from_node"],
-				to_node=dct["to_node"],
-				values=dct["values"],
-				type_ref=None  # Will be restored later
-			)
-
-		elif graphite_type == "NodeType":
-			# Create NodeType instance (parent will be restored later)
-			return NodeType(
-				name=dct["name"],
-				fields=dct.get("fields", []),
-				parent=None  # Will be restored later
-			)
-
-		elif graphite_type == "RelationType":
-			# Create RelationType instance
-			return RelationType(
-				name=dct["name"],
-				from_type=dct["from_type"],
-				to_type=dct["to_type"],
-				fields=dct.get("fields", []),
-				reverse_name=dct.get("reverse_name"),
-				is_bidirectional=dct.get("is_bidirectional", False)
-			)
-
-		elif graphite_type == "Field":
-			# Create Field instance
-			return Field(
-				name=dct["name"],
-				dtype=DataType(dct["dtype"]),
-				default=dct.get("default")
-			)
-
-		return dct
+		"""Object hook for decoding Graphite objects from JSON."""
+		return graphite_object_hook(dct)
 
 	def save(self, filename: str):
 		"""Save database to file using JSON"""
-		# Prepare data structure
-		data = {
-			"version"          : "1.0",
-			"node_types"       : list(self.node_types.values()),
-			"relation_types"   : list(self.relation_types.values()),
-			"nodes"            : list(self.nodes.values()),
-			"relations"        : self.relations,
-			# Convert defaultdicts to regular dicts for JSON
-			"node_by_type"     : dict(self.node_by_type.items()),
-			"relations_by_type": dict(self.relations_by_type.items()),
-			"relations_by_from": dict(self.relations_by_from.items()),
-			"relations_by_to"  : dict(self.relations_by_to.items()),
-		}
-
+		data = self._build_save_payload()
 		with open(filename, 'w', encoding='utf-8') as f:
 			# noinspection PyTypeChecker
 			json.dump(data, f, cls=GraphiteJSONEncoder, indent=2, ensure_ascii=False)
@@ -374,10 +281,8 @@ class GraphiteEngine:  # pylint: disable=too-many-instance-attributes
 		if not filename.lower().endswith('.json'):
 			raise SafeLoadExtensionError()
 
-		# Read with limited recursion depth
 		try:
 			with open(filename, 'r', encoding='utf-8') as f:
-				# Use lower recursion limit for safety
 				data = json.load(f, object_hook=self._graphite_object_hook)
 		except json.JSONDecodeError as e:
 			raise InvalidJSONError() from e
@@ -394,6 +299,13 @@ class GraphiteEngine:  # pylint: disable=too-many-instance-attributes
 	@staticmethod
 	def _validate_loaded_data(data: Dict[str, Any]):
 		"""Validate loaded data for consistency"""
+		if not isinstance(data, dict):
+			raise ValidationError(
+				"Loaded data must be a dictionary",
+				"data",
+				str(type(data))
+			)
+
 		required_keys = ['version', 'node_types', 'relation_types', 'nodes']
 		for key in required_keys:
 			if key not in data:
@@ -402,6 +314,31 @@ class GraphiteEngine:  # pylint: disable=too-many-instance-attributes
 					key,
 					"'Missing'"
 				)
+
+		if not isinstance(data.get('node_types'), list):
+			raise ValidationError(
+				"node_types must be a list",
+				"node_types",
+				str(type(data.get('node_types')))
+			)
+		if not isinstance(data.get('relation_types'), list):
+			raise ValidationError(
+				"relation_types must be a list",
+				"relation_types",
+				str(type(data.get('relation_types')))
+			)
+		if not isinstance(data.get('nodes'), list):
+			raise ValidationError(
+				"nodes must be a list",
+				"nodes",
+				str(type(data.get('nodes')))
+			)
+		if 'relations' in data and not isinstance(data.get('relations'), list):
+			raise ValidationError(
+				"relations must be a list",
+				"relations",
+				str(type(data.get('relations')))
+			)
 
 		# Check for unexpected keys
 		allowed_keys = {
@@ -413,12 +350,19 @@ class GraphiteEngine:  # pylint: disable=too-many-instance-attributes
 				warnings.warn(f"Unexpected key in data: {key}", UserWarning)
 
 		# Validate nodes reference existing types
-		node_type_names = {nt.name for nt in data.get('node_types', [])}
+		node_type_names = set()
+		for node_type in data.get('node_types', []):
+			if isinstance(node_type, NodeType):
+				node_type_names.add(node_type.name)
+			elif isinstance(node_type, dict) and 'name' in node_type:
+				node_type_names.add(node_type['name'])
+
 		for check_node in data.get('nodes', []):
-			if check_node.type_name not in node_type_names:
+			type_name = check_node.type_name if isinstance(check_node, Node) else check_node.get('type_name')
+			if type_name not in node_type_names:
 				raise NotFoundError(
 					"Node type",
-					check_node.type_name,
+					type_name,
 				)
 
 	def _load_from_dict(self, data: Dict[str, Any]):
@@ -426,8 +370,13 @@ class GraphiteEngine:  # pylint: disable=too-many-instance-attributes
 		# Clear existing data
 		self.clear()
 
+		node_types_data = data.get('node_types', [])
+		relation_types_data = data.get('relation_types', [])
+		nodes_data = data.get('nodes', [])
+		relations_data = data.get('relations', [])
+
 		# Restore node types
-		for nt_dict in data['node_types']:
+		for nt_dict in node_types_data:
 			if isinstance(nt_dict, NodeType):
 				nt = nt_dict
 			else:
@@ -440,14 +389,18 @@ class GraphiteEngine:  # pylint: disable=too-many-instance-attributes
 			self.node_types[nt.name] = nt
 
 		# Restore parent references for node types
-		for nt in data['node_types']:
-			if isinstance(nt, dict) and nt.get('parent'):
-				parent_name = nt['parent']
-				if parent_name in self.node_types:
-					self.node_types[nt['name']].parent = self.node_types[parent_name]
+		for nt in node_types_data:
+			if isinstance(nt, dict):
+				parent_name = nt.get('parent')
+				name = nt.get('name')
+			else:
+				parent_name = nt.parent.name if nt.parent else None
+				name = nt.name
+			if parent_name and parent_name in self.node_types and name in self.node_types:
+				self.node_types[name].parent = self.node_types[parent_name]
 
 		# Restore relation types
-		for rt_dict in data['relation_types']:
+		for rt_dict in relation_types_data:
 			if isinstance(rt_dict, RelationType):
 				rt = rt_dict
 			else:
@@ -462,7 +415,7 @@ class GraphiteEngine:  # pylint: disable=too-many-instance-attributes
 			self.relation_types[rt.name] = rt
 
 		# Restore nodes
-		for node_data in data['nodes']:
+		for node_data in nodes_data:
 			if isinstance(node_data, Node):
 				loading_node = node_data
 			else:
@@ -480,7 +433,7 @@ class GraphiteEngine:  # pylint: disable=too-many-instance-attributes
 			self.nodes[loading_node.id] = loading_node
 
 		# Restore relations
-		for rel_data in data['relations']:
+		for rel_data in relations_data:
 			if isinstance(rel_data, Relation):
 				rel = rel_data
 			else:
@@ -500,6 +453,20 @@ class GraphiteEngine:  # pylint: disable=too-many-instance-attributes
 
 		# Rebuild all indexes
 		self._rebuild_all_indexes()
+
+	def _build_save_payload(self) -> Dict[str, Any]:
+		"""Build a JSON-serializable payload for persistence."""
+		return {
+			"version"          : "1.0",
+			"node_types"       : list(self.node_types.values()),
+			"relation_types"   : list(self.relation_types.values()),
+			"nodes"            : list(self.nodes.values()),
+			"relations"        : list(self.relations),
+			"node_by_type"     : dict(self.node_by_type.items()),
+			"relations_by_type": dict(self.relations_by_type.items()),
+			"relations_by_from": dict(self.relations_by_from.items()),
+			"relations_by_to"  : dict(self.relations_by_to.items()),
+		}
 
 	def _rebuild_all_indexes(self):
 		self._rebuild_node_by_type()
