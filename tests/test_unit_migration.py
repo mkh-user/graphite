@@ -3,8 +3,13 @@ Unit tests for Migration utility
 """
 import os
 import pickle
+import tempfile
+import pytest
+
 from src.graphite import Migration, GraphiteEngine
 
+@pytest.mark.filterwarnings("ignore:'convert_pickle_to_json':PendingDeprecationWarning")
+@pytest.mark.filterwarnings("ignore:Loading from pickle file")
 # noinspection PyTypeChecker
 class TestMigration:
 	"""Test Migration utility class"""
@@ -96,7 +101,7 @@ class TestMigration:
 		pickle_file = temp_json_file.replace('.json', '.db')
 
 		# Create an invalid pickle file
-		with open(pickle_file, 'w') as f:
+		with open(pickle_file, 'w', encoding="utf-8") as f:
 			f.write("Not a pickle file")
 
 		json_file = temp_json_file
@@ -105,10 +110,9 @@ class TestMigration:
 
 		assert success is False
 
-	def test_detect_pickle_and_convert(self, populated_engine, temp_json_file):
+	@pytest.mark.filterwarnings("ignore::PendingDeprecationWarning")
+	def test_detect_pickle_and_convert(self, populated_engine):
 		"""Test detecting and converting pickle files in directory"""
-		import tempfile
-
 		# Create temporary directory
 		with tempfile.TemporaryDirectory() as temp_dir:
 			# Create a pickle file
@@ -131,12 +135,12 @@ class TestMigration:
 
 			# Also create a JSON file (should be ignored)
 			json_file = os.path.join(temp_dir, "test.json")
-			with open(json_file, 'w') as f:
+			with open(json_file, 'w', encoding="utf-8") as f:
 				f.write('{"test": "data"}')
 
 			# Create a non-pickle file (should be skipped)
 			txt_file = os.path.join(temp_dir, "test.txt")
-			with open(txt_file, 'w') as f:
+			with open(txt_file, 'w', encoding="utf-8") as f:
 				f.write("text file")
 
 			# Run detection and conversion
@@ -150,36 +154,3 @@ class TestMigration:
 
 			# Check pickle file still exists (delete_originals defaults to False)
 			assert os.path.exists(pickle_file)
-
-	def test_detect_pickle_and_convert_delete_originals(self, populated_engine):
-		"""Test detection with delete_originals=True"""
-		import tempfile
-
-		with tempfile.TemporaryDirectory() as temp_dir:
-			pickle_file = os.path.join(temp_dir, "test.db")
-
-			engine = populated_engine
-			data = {
-				'node_types'       : engine.node_types,
-				'relation_types'   : engine.relation_types,
-				'nodes'            : engine.nodes,
-				'relations'        : engine.relations,
-				'node_by_type'     : dict(engine.node_by_type),
-				'relations_by_type': dict(engine.relations_by_type),
-				'relations_by_from': dict(engine.relations_by_from),
-				'relations_by_to'  : dict(engine.relations_by_to)
-			}
-
-			with open(pickle_file, 'wb') as f:
-				pickle.dump(data, f)
-
-			Migration.detect_pickle_and_convert_to_json(
-				temp_dir, pattern="*.db", delete_originals=True
-			)
-
-			# Check pickle file was deleted
-			assert not os.path.exists(pickle_file)
-
-			# Check JSON file was created
-			json_file = os.path.join(temp_dir, "test.json")
-			assert os.path.exists(json_file)

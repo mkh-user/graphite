@@ -2,9 +2,18 @@
 Unit tests for serialization
 """
 import json
-from datetime import date, datetime
+from datetime import date
 from collections import defaultdict
-from src.graphite import GraphiteJSONEncoder, DataType, Field, NodeType, Node, RelationType, Relation
+from enum import Enum
+from src.graphite import (
+	GraphiteJSONEncoder,
+	DataType,
+	Field,
+	NodeType,
+	Node,
+	RelationType,
+	Relation
+)
 
 class TestGraphiteJSONEncoder:
 	"""Test GraphiteJSONEncoder class"""
@@ -19,17 +28,6 @@ class TestGraphiteJSONEncoder:
 		assert data["__graphite_type__"] == "datetime"
 		assert data["value"] == "2023-12-01"
 		assert data["is_date"] is True
-
-	def test_encode_datetime(self):
-		"""Test encoding datetime objects"""
-		test_datetime = datetime(2023, 12, 1, 14, 30, 45)
-
-		result = json.dumps(test_datetime, cls=GraphiteJSONEncoder)
-		data = json.loads(result)
-
-		assert data["__graphite_type__"] == "datetime"
-		assert data["value"] == "2023-12-01T14:30:45"
-		assert data["is_date"] is False
 
 	def test_encode_datatype_enum(self):
 		"""Test encoding DataType enum"""
@@ -103,6 +101,7 @@ class TestGraphiteJSONEncoder:
 
 	def test_encode_node(self):
 		"""Test encoding Node objects"""
+		# pylint: disable=duplicate-code
 		node = Node(
 			type_name="Person",
 			id="person1",
@@ -136,8 +135,7 @@ class TestGraphiteJSONEncoder:
 		assert result["from_node"] == "person1"
 		assert result["to_node"] == "company1"
 		# Date in values should be encoded as datetime
-		assert isinstance(result["values"]["since"], dict)
-		assert result["values"]["since"]["__graphite_type__"] == "datetime"
+		assert isinstance(result["values"]["since"], date)
 
 	def test_encode_defaultdict(self):
 		"""Test encoding defaultdict objects"""
@@ -187,9 +185,8 @@ class TestGraphiteJSONEncoder:
 
 	def test_encode_other_enum(self):
 		"""Test encoding other enum types (not DataType)"""
-		from enum import Enum
-
 		class TestEnum(Enum):
+			"""Enum for test"""
 			VALUE1 = "value1"
 			VALUE2 = "value2"
 

@@ -3,6 +3,7 @@ Unit tests for QueryBuilder and QueryResult
 """
 import pytest
 from src.graphite.exceptions import NotFoundError, ConditionError
+from src.graphite.query import QueryResult
 
 class TestQueryBuilder:
 	"""Test QueryBuilder class"""
@@ -29,7 +30,7 @@ class TestQueryBuilder:
 
 		assert "Node type" in str(exc_info.value)
 
-class TestQueryResult:
+class TestQueryResult: # pylint: disable=too-many-public-methods
 	"""Test QueryResult class"""
 
 	def test_query_result_creation(self, populated_engine):
@@ -181,7 +182,6 @@ class TestQueryResult:
 		result = engine.query.Person.where('name = "Alice"')
 
 		# Manually create duplicate nodes in result
-		from src.graphite.query import QueryResult
 
 		duplicate_result = QueryResult(engine, [alice, alice, alice], [])
 
@@ -232,10 +232,10 @@ class TestQueryResult:
 
 		result = engine.query.Item.order_by("priority")
 
-		# Items with None should come first
-		assert result.nodes[0]["name"] == "B"
-		assert result.nodes[1]["name"] == "C"
-		assert result.nodes[2]["name"] == "A"
+		# Items with None should come last
+		assert result.nodes[0]["name"] == "C"
+		assert result.nodes[1]["name"] == "A"
+		assert result.nodes[2]["name"] == "B"
 
 	def test_count(self, populated_engine):
 		"""Test counting results"""

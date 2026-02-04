@@ -37,12 +37,22 @@ class InvalidPropertiesError(GraphiteError):
 	def __init__(self, valid_properties: list[Field], got_count: int):
 		self.valid_properties = valid_properties
 		self.got_count = got_count
+		# pylint: disable=consider-using-f-string
 		super().__init__(
-			f"Expected {len(valid_properties)} properties "
-			f"({", ".join([f.name for f in valid_properties])}), got {got_count}"
+			"Expected {} properties ({}), got {}".format(len(valid_properties), valid_properties, got_count)
+		)
+
+class FieldError(GraphiteError):
+	"""Field error"""
+	def __init__(self, field: Field, value: Any):
+		self.field = field
+		self.value = value
+		super().__init__(
+			f"Field {field.name} must be '{str(field.dtype)}', got {type(value)} ({value})"
 		)
 
 class DateParseError(GraphiteError):
+	"""Date parsing error"""
 	def __init__(self, date_str: str, expected_format: str = "%Y-%m-%d"):
 		self.date_str = date_str
 		self.expected_format = expected_format

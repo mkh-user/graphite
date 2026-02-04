@@ -11,7 +11,7 @@ from .exceptions import (
 	FileSizeError, InvalidJSONError, InvalidPropertiesError, NotFoundError,
 	SafeLoadExtensionError, TooNestedJSONError, ValidationError,
 )
-from .types import NodeType, RelationType
+from .types import Field, NodeType, RelationType
 from .instances import Node, Relation
 from .parser import GraphiteParser
 from .query import QueryBuilder
@@ -103,7 +103,7 @@ class GraphiteEngine:  # pylint: disable=too-many-instance-attributes
 		# Create values dictionary
 		node_values = {}
 		for current_field, value in zip(all_fields, values):
-			node_values[current_field.name] = self.parser.parse_value(value)
+			node_values[current_field.name] = self.parser.parse_field_value(value, current_field)
 
 		new_node = Node(node_type, node_id, node_values, node_type_obj)
 		self.nodes[node_id] = new_node
@@ -257,7 +257,9 @@ class GraphiteEngine:  # pylint: disable=too-many-instance-attributes
 			# noinspection PyTypeChecker
 			json.dump(data, f, cls=GraphiteJSONEncoder, indent=2, ensure_ascii=False)
 
-	def load_safe(self, filename: str, max_size_mb: int | float = 100, validate_schema: bool = True) -> None:
+	def load_safe(
+		self, filename: str, max_size_mb: int | float = 100, validate_schema: bool = True
+	) -> None:
 		"""
 		Safely load database with security checks
 
@@ -297,6 +299,7 @@ class GraphiteEngine:  # pylint: disable=too-many-instance-attributes
 		self._load_from_dict(data)
 
 	@staticmethod
+	# pylint: disable=too-many-branches
 	def _validate_loaded_data(data: Dict[str, Any]):
 		"""Validate loaded data for consistency"""
 		if not isinstance(data, dict):
@@ -365,6 +368,7 @@ class GraphiteEngine:  # pylint: disable=too-many-instance-attributes
 					type_name,
 				)
 
+	# pylint: disable=too-many-branches, too-many-locals
 	def _load_from_dict(self, data: Dict[str, Any]):
 		"""Internal method to load from dictionary (used by both load and load_safe)"""
 		# Clear existing data
@@ -381,9 +385,13 @@ class GraphiteEngine:  # pylint: disable=too-many-instance-attributes
 				nt = nt_dict
 			else:
 				# Convert from dict if needed
+				fields: List[Field] = list(map(
+					lambda fld: Field(fld["name"], fld["dtype"], fld["default"]),
+					nt_dict.get("fields", [])
+				))
 				nt = NodeType(
 					name=nt_dict['name'],
-					fields=nt_dict.get('fields', []),
+					fields=fields,
 					parent=None  # Will be restored later
 				)
 			self.node_types[nt.name] = nt
@@ -396,6 +404,8 @@ class GraphiteEngine:  # pylint: disable=too-many-instance-attributes
 			else:
 				parent_name = nt.parent.name if nt.parent else None
 				name = nt.name
+			if isinstance(parent_name, dict):
+				parent_name = parent_name["name"]
 			if parent_name and parent_name in self.node_types and name in self.node_types:
 				self.node_types[name].parent = self.node_types[parent_name]
 

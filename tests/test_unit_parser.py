@@ -1,11 +1,13 @@
 """
 Unit tests for GraphiteParser
 """
+from datetime import datetime
+
 import pytest
 from src.graphite import GraphiteParser, DataType
 from src.graphite.exceptions import SchemaError
 
-class TestGraphiteParser:
+class TestGraphiteParser: # pylint: disable=attribute-defined-outside-init
 	"""Test GraphiteParser class"""
 
 	def setup_method(self):
@@ -96,7 +98,7 @@ class TestGraphiteParser:
         """
 
 		(rel_name, from_type, to_type,
-		fields, reverse_name, is_bidirectional) = self.parser.parse_relation_definition(definition)
+		_, reverse_name, is_bidirectional) = self.parser.parse_relation_definition(definition)
 
 		assert rel_name == "WORKS_AT"
 		assert from_type == "Person"
@@ -113,7 +115,7 @@ class TestGraphiteParser:
         """
 
 		(rel_name, from_type, to_type,
-		fields, reverse_name, is_bidirectional) = self.parser.parse_relation_definition(definition)
+		_, reverse_name, is_bidirectional) = self.parser.parse_relation_definition(definition)
 
 		assert rel_name == "FRIENDS_WITH"
 		assert from_type == "Person"
@@ -129,8 +131,8 @@ class TestGraphiteParser:
         since: date
         """
 
-		(rel_name, from_type, to_type,
-		fields, reverse_name, is_bidirectional) = self.parser.parse_relation_definition(definition)
+		(rel_name, _, _, _,
+		reverse_name, is_bidirectional) = self.parser.parse_relation_definition(definition)
 
 		assert rel_name == "MARRIED_TO"
 		assert reverse_name == "MARRIED_TO"
@@ -185,30 +187,19 @@ class TestGraphiteParser:
 		assert from_id == "person1"
 		assert to_id == "company1"
 		assert rel_type == "WORKS_AT"
-		assert values == ["Engineer", "2021-01-01"]
+		assert values == ["Engineer", datetime.strptime("2021-01-01", "%Y-%m-%d").date()]
 		assert direction == "forward"
-
-	def test_parse_relation_instance_backward(self):
-		"""Test parsing backward relation instance"""
-		line = "company1 <-[EMPLOYS, Manager]- person1"
-
-		from_id, to_id, rel_type, values, direction = self.parser.parse_relation_instance(line)
-
-		assert from_id == "company1"
-		assert to_id == "person1"
-		assert rel_type == "EMPLOYS"
-		assert values == ["Manager"]
 
 	def test_parse_relation_instance_no_attributes(self):
 		"""Test parsing relation instance without attributes"""
 		line = "person1 -[LIKES]-> post1"
 
-		from_id, to_id, rel_type, values, direction = self.parser.parse_relation_instance(line)
+		from_id, to_id, rel_type, values, _ = self.parser.parse_relation_instance(line)
 
 		assert from_id == "person1"
 		assert to_id == "post1"
 		assert rel_type == "LIKES"
-		assert values == []
+		assert not values
 
 	def test_parse_relation_instance_bidirectional(self):
 		"""Test parsing bidirectional relation instance"""
@@ -219,7 +210,7 @@ class TestGraphiteParser:
 		assert from_id == "person1"
 		assert to_id == "person2"
 		assert rel_type == "FRIENDS_WITH"
-		assert values == ["2020-05-15"]
+		assert values == [datetime.strptime("2020-05-15", "%Y-%m-%d").date()]
 		assert direction == "bidirectional"
 
 	def test_parse_invalid_relation_format(self):

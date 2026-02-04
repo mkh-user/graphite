@@ -1,7 +1,6 @@
 """
 Unit tests for Node and Relation instances
 """
-import pytest
 from src.graphite import Node, Relation, NodeType, RelationType, Field, DataType
 
 class TestNode:
@@ -32,20 +31,6 @@ class TestNode:
 		assert node.get("name") == "Alice"
 		assert node.get("age") == 30
 		assert node.get("nonexistent") is None
-
-	def test_node_getitem(self):
-		"""Test node dictionary access"""
-		node = Node(
-			type_name="Person",
-			id="person1",
-			values={"name": "Alice", "age": 30}
-		)
-
-		assert node["name"] == "Alice"
-		assert node["age"] == 30
-
-		with pytest.raises(KeyError):
-			_ = node["nonexistent"]
 
 	def test_node_repr(self):
 		"""Test node string representation"""

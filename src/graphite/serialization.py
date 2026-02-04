@@ -14,6 +14,17 @@ from .types import DataType, Field, NodeType, RelationType
 GRAPHITE_TYPE_FIELD = "__graphite_type__"
 DEFAULT_FACTORY_FIELD = "__default_factory"
 
+def _serialize_instance(instance: Node | Relation) -> dict[str, Any]:
+	return {
+		GRAPHITE_TYPE_FIELD: type(instance).__name__,
+		"type_name"        : instance.type_name,
+		"id"               : instance.id if hasattr(instance, "id") else None,
+		"values"           : instance.values,
+		"from_node"        : instance.from_node if hasattr(instance, "from_node") else None,
+		"to_node"          : instance.to_node if hasattr(instance, "to_node") else None,
+		"type_ref"         : instance.type_ref.name if instance.type_ref else None
+	}
+
 class GraphiteJSONEncoder(json.JSONEncoder):
 	"""Custom JSON encoder for Graphite data structures"""
 
@@ -40,13 +51,6 @@ class GraphiteJSONEncoder(json.JSONEncoder):
 				"enum_class"       : type(o).__name__,
 				"value"            : o.value
 			}
-
-		# Handle dataclasses
-		if is_dataclass(o) and not isinstance(o, type):
-			# Convert to dict and add type info
-			result = asdict(o)
-			result[GRAPHITE_TYPE_FIELD] = type(o).__name__
-			return result
 
 		# Handle defaultdict
 		if isinstance(o, defaultdict):
@@ -79,9 +83,19 @@ class GraphiteJSONEncoder(json.JSONEncoder):
 			result["dtype"] = o.dtype.value
 			return result
 
+		# Handle dataclasses
+		if is_dataclass(o) and not isinstance(o, type):
+			# Convert to dict and add type info
+			result = asdict(o)
+			result[GRAPHITE_TYPE_FIELD] = type(o).__name__
+			return result
+
+		if isinstance(o, (dict, list)):
+			return o
+
 		return super().default(o)
 
-
+# pylint: disable=too-many-branches
 def graphite_object_hook(dct: dict[str, Any]) -> Any:  # pylint: disable=too-many-return-statements
 	"""Decode Graphite-specific objects from JSON."""
 	if GRAPHITE_TYPE_FIELD not in dct:
@@ -158,15 +172,3 @@ def graphite_object_hook(dct: dict[str, Any]) -> Any:  # pylint: disable=too-man
 		)
 
 	return dct
-
-
-def _serialize_instance(instance: Node | Relation) -> dict[str, Any]:
-	return {
-		GRAPHITE_TYPE_FIELD: type(instance).__name__,
-		"type_name"        : instance.type_name,
-		"id"               : instance.id if hasattr(instance, "id") else None,
-		"values"           : instance.values,
-		"from_node"        : instance.from_node if hasattr(instance, "from_node") else None,
-		"to_node"          : instance.to_node if hasattr(instance, "to_node") else None,
-		"type_ref"         : instance.type_ref.name if instance.type_ref else None
-	}

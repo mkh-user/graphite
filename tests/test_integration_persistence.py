@@ -1,8 +1,9 @@
 """
 Integration tests for persistence (save/load)
 """
-import pytest
 import os
+import warnings
+import pytest
 
 from src.graphite import GraphiteEngine
 from src.graphite.exceptions import FileSizeError, SafeLoadExtensionError, InvalidJSONError
@@ -102,8 +103,6 @@ class TestPersistenceIntegration:
 
 	def test_load_unsafe_mode(self, populated_engine, temp_json_file):
 		"""Test unsafe loading mode (for backward compatibility)"""
-		import warnings
-
 		engine = populated_engine
 		engine.save(temp_json_file)
 
@@ -124,7 +123,7 @@ class TestPersistenceIntegration:
 	def test_load_invalid_json(self, temp_json_file):
 		"""Test loading invalid JSON file"""
 		# Create invalid JSON
-		with open(temp_json_file, 'w') as f:
+		with open(temp_json_file, 'w', encoding="utf-8") as f:
 			f.write("Invalid JSON content {")
 
 		engine = GraphiteEngine()

@@ -76,7 +76,8 @@ class TestDSLIntegration:
 
 		# Verify data was loaded
 		assert len(engine.nodes) == 7  # 3 persons + 2 companies + 2 projects
-		assert len(engine.relations) == 9  # 3 WORKS_AT + 2 MANAGES + 2 FRIENDS_WITH (but bidirectional creates 2 each)
+		# 3 WORKS_AT + 2 MANAGES + 2 FRIENDS_WITH (but bidirectional creates 2 each)
+		assert len(engine.relations) == 9
 
 		# Verify specific data
 		alice = engine.get_node("person1")

@@ -2,6 +2,7 @@
 Tests for utility functions
 """
 from src.graphite.utils import node, relation, engine, SecurityWarning
+from src.graphite.engine import GraphiteEngine
 
 class TestUtils:
 	"""Test utility functions"""
@@ -60,8 +61,6 @@ Person -> Company"""
 
 	def test_engine_helper(self):
 		"""Test engine helper function"""
-		from src.graphite.engine import GraphiteEngine
-
 		result = engine()
 
 		assert isinstance(result, GraphiteEngine)

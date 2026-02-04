@@ -1,9 +1,9 @@
 """
 Unit tests for GraphiteEngine core functionality
 """
-import pytest
 from datetime import date
-from src.graphite.exceptions import NotFoundError, InvalidPropertiesError, DateParseError
+import pytest
+from src.graphite.exceptions import FieldError, NotFoundError, InvalidPropertiesError
 
 class TestGraphiteEngineSchema:
 	"""Test GraphiteEngine schema definition methods"""
@@ -57,7 +57,7 @@ class TestGraphiteEngineSchema:
 
 		# Check inherited fields
 		all_fields = user_type.get_all_fields()
-		assert len(all_fields) == 3
+		assert len(all_fields) == 4
 		assert all_fields[0].name == "id"
 		assert all_fields[1].name == "created"
 		assert all_fields[2].name == "username"
@@ -220,7 +220,7 @@ class TestGraphiteEngineDataManipulation:
         """
 		)
 
-		with pytest.raises(DateParseError):
+		with pytest.raises(FieldError):
 			engine.create_node("Event", "event1", "Conference", "invalid-date")
 
 	def test_create_node_wrong_property_count(self, clean_engine):
@@ -256,8 +256,8 @@ class TestGraphiteEngineDataManipulation:
 		engine = clean_engine
 
 		# Setup
-		engine.define_node("node Person")
-		engine.define_node("node Company")
+		engine.define_node("node Person\nname: string")
+		engine.define_node("node Company\nname: string")
 		engine.define_relation(
 			"""
         relation WORKS_AT
@@ -294,7 +294,7 @@ class TestGraphiteEngineDataManipulation:
 		"""Test creating bidirectional relation"""
 		engine = clean_engine
 
-		engine.define_node("node Person")
+		engine.define_node("node Person\nname: string")
 		engine.define_relation(
 			"""
         relation FRIENDS_WITH both
@@ -323,7 +323,7 @@ class TestGraphiteEngineDataManipulation:
 		"""Test creating relation with non-existent nodes"""
 		engine = clean_engine
 
-		engine.define_node("node Person")
+		engine.define_node("node Person\nname: string")
 		engine.define_node("node Company")
 		engine.define_relation("relation WORKS_AT\nPerson -> Company")
 
@@ -339,8 +339,8 @@ class TestGraphiteEngineDataManipulation:
 		"""Test creating relation of non-existent type"""
 		engine = clean_engine
 
-		engine.define_node("node Person")
-		engine.define_node("node Company")
+		engine.define_node("node Person\nname: string")
+		engine.define_node("node Company\nname: string")
 
 		engine.create_node("Person", "person1", "Alice")
 		engine.create_node("Company", "company1", "TechCorp")

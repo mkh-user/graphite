@@ -33,8 +33,8 @@ class QueryResult:
 				try:
 					if condition(processing_node):
 						filtered_nodes.append(processing_node)
-				except Exception as e:  # pylint: disable=broad-exception-caught
-					print(f"Graphite Warn: 'where' condition failed for node {processing_node}: {e}")
+				except Exception as e:
+					raise ConditionError(str(condition)) from e
 		else:
 			# String condition like "age > 18"
 			for processing_node in self.nodes:
@@ -103,7 +103,7 @@ class QueryResult:
 					raise ConditionError(condition)
 				return result
 
-		return False
+		raise ConditionError(condition)
 
 	def traverse(self, relation_type: str, direction: str = 'outgoing'):
 		"""Traverse relations from current nodes"""

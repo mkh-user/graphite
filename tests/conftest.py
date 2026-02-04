@@ -3,11 +3,14 @@ Configuration and fixtures for Graphite tests
 """
 import sys
 import os
-sys.path.insert(0, os.path.abspath('..'))
-
-import pytest
 import tempfile
-from src.graphite import GraphiteEngine
+import pytest
+
+try:
+	sys.path.insert(0, os.path.abspath('..'))
+	from src.graphite import GraphiteEngine
+except Exception as e:
+	raise e
 
 @pytest.fixture
 def clean_engine():
@@ -122,7 +125,9 @@ def engine_with_inheritance():
 	)
 
 	engine.create_node("Entity", "ent1", "base_entity", "2023-01-01")
-	engine.create_node("User", "user1", "user_entity", "2023-02-01", "john", "pass123", True)
-	engine.create_node("Admin", "admin1", "admin_entity", "2023-03-01", "admin", "admin123", True, "all")
+	engine.create_node("User", "user1", "user_entity", "2023-02-01",
+		"john", "pass123", True)
+	engine.create_node("Admin",  "admin1", "admin_entity", "2023-03-01",
+		"admin", "admin123", True, "all")
 
 	return engine

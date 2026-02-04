@@ -2,23 +2,84 @@
 Parser for Graphite DSL
 """
 import re
-from datetime import datetime
+from datetime import date, datetime
 from typing import Any, List, Optional, Tuple
 
-from .exceptions import DateParseError, SchemaError
+from .exceptions import DateParseError, FieldError, NotFoundError, SchemaError
 from .types import DataType, Field
 
 class GraphiteParser:
 	"""Parser for Graphite DSL"""
 
+	def parse_field_value(self, value: Any, field: Field) -> Any:
+		"""
+		Parse a raw value for a field (node or relation) and return it.
+
+		**Note:** Value will be validated with field information, use ``parse_value()``
+		to ignore validation.
+		"""
+		value = self.parse_value(value)
+		return self.validate_field_value(value, field)
+
 	@staticmethod
+	# pylint: disable=broad-exception-caught, too-many-branches
+	def validate_field_value(value: Any, field: Field) -> Any:
+		"""
+		Converts given value to field's data type. Raises ``FieldError`` at fail.
+		"""
+		if value is None:
+			return None
+		exc = None
+		if field.dtype == DataType.STRING and not isinstance(value, str):
+			try:
+				value = str(exc)
+			except Exception as e:
+				exc = e
+		elif field.dtype == DataType.INT and not isinstance(value, int):
+			try:
+				value = int(value)
+			except Exception as e:
+				exc = e
+		elif field.dtype == DataType.DATE and not isinstance(value, (datetime, date)):
+			try:
+				value = datetime.strptime(value, "%Y-%m-%d").date()
+			except Exception as e:
+				exc = e
+		elif field.dtype == DataType.FLOAT and not isinstance(value, float):
+			try:
+				value = float(value)
+			except Exception as e:
+				exc = e
+		elif field.dtype == DataType.BOOL and not isinstance(value, bool):
+			if isinstance(value, str):
+				value = value.lower() == "true"
+			else:
+				try:
+					value = bool(value)
+				except Exception as e:
+					exc = e
+		elif field.dtype not in DataType:
+			raise NotFoundError(
+				"Data type",
+				str(field.dtype)
+			)
+		if exc is not None:
+			raise FieldError(
+				field,
+				value
+			) from exc
+		return value
+
+	@staticmethod
+	# pylint: disable=too-many-return-statements
 	def parse_value(value: Any) -> Any:
+		"""Parses a raw value (usually ``str``) into correct type."""
 		if not isinstance(value, str):
 			return value
 		value = value.strip()
 		if value.startswith('"') and value.endswith('"'):
 			return value[1:-1]
-		if value.replace('-', '').isdigit() and '-' in value:  # Date-like
+		if value.replace('-', '').isdigit() and value.count("-") == 2:  # Date-like
 			try:
 				return datetime.strptime(value, '%Y-%m-%d').date()
 			except ValueError as e:
@@ -27,7 +88,7 @@ class GraphiteParser:
 			return int(value)
 		if value.replace('.', '').isdigit() and value.count('.') == 1:
 			return float(value)
-		elif value.lower() in ('true', 'false'):
+		if value.lower() in ('true', 'false'):
 			return value.lower() == 'true'
 		return value
 
