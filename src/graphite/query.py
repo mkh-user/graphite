@@ -1,11 +1,12 @@
 """
 Query engine and object for Graphite
 """
+from datetime import date, datetime
 from typing import TYPE_CHECKING, List, Callable, Optional, Union
 
 from .instances import Node, Relation
 from .types import RelationType
-from .exceptions import ConditionError, NotFoundError
+from .exceptions import ConditionError, DateParseError, NotFoundError
 
 if TYPE_CHECKING:
 	from .engine import GraphiteEngine
@@ -61,7 +62,7 @@ class QueryResult:
 					return False
 
 				# Parse right side
-				if right.startswith('"') and right.endswith('"'):
+				if right[0] in ('"', "'") and right[-1] in ('"', "'"):
 					right_value = right[1:-1]
 				elif right.isdigit():
 					right_value = int(right)
@@ -70,20 +71,34 @@ class QueryResult:
 				else:
 					right_value = right
 
+				if right_value == "true":
+					right_value = True
+				elif right_value == "false":
+					right_value = False
+
+				if isinstance(node_value, date):
+					try:
+						right_value = datetime.strptime(right_value, "%Y-%m-%d").date()
+					except Exception as e:
+						raise DateParseError(right_value) from e
+
 				# Apply operation
 				result = None
-				if op in ('=', '=='):
-					result = node_value == right_value
-				if op == '!=':
-					result = node_value != right_value
-				if op == '>':
-					result = node_value > right_value
-				if op == '<':
-					result = node_value < right_value
-				if op == '>=':
-					result = node_value >= right_value
-				if op == '<=':
-					result = node_value <= right_value
+				try:
+					if op in ('=', '=='):
+						result = node_value == right_value
+					if op == '!=':
+						result = node_value != right_value
+					if op == '>':
+						result = node_value > right_value
+					if op == '<':
+						result = node_value < right_value
+					if op == '>=':
+						result = node_value >= right_value
+					if op == '<=':
+						result = node_value <= right_value
+				except TypeError as e:
+					raise e
 				if result is None:
 					raise ConditionError(condition)
 				return result

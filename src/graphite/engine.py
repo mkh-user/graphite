@@ -9,7 +9,7 @@ from datetime import datetime, date
 from typing import Dict, List, Optional, Any
 
 from .exceptions import (
-	FileSizeError, InvalidJSONError, InvalidPropertiesError, NotFoundError, DateParseError,
+	FileSizeError, InvalidJSONError, InvalidPropertiesError, NotFoundError,
 	SafeLoadExtensionError, TooNestedJSONError, ValidationError,
 )
 from .types import NodeType, RelationType, Field, DataType
@@ -104,13 +104,7 @@ class GraphiteEngine:  # pylint: disable=too-many-instance-attributes
 		# Create values dictionary
 		node_values = {}
 		for current_field, value in zip(all_fields, values):
-			# Convert string dates to date objects
-			if current_field.dtype == DataType.DATE and isinstance(value, str):
-				try:
-					value = datetime.strptime(value, "%Y-%m-%d").date()
-				except Exception as e:
-					raise DateParseError(value) from e
-			node_values[current_field.name] = value
+			node_values[current_field.name] = self.parser.parse_value(value)
 
 		new_node = Node(node_type, node_id, node_values, node_type_obj)
 		self.nodes[node_id] = new_node
@@ -139,17 +133,16 @@ class GraphiteEngine:  # pylint: disable=too-many-instance-attributes
 				to_id
 			)
 
+		if len(values) != len(rel_type_obj.fields):
+			raise InvalidPropertiesError(
+				rel_type_obj.fields,
+				len(values)
+			)
+
 		# Create values dictionary
 		rel_values = {}
 		for i, rel_field in enumerate(rel_type_obj.fields):
-			if i < len(values):
-				value = values[i]
-				if rel_field.dtype == DataType.DATE and isinstance(value, str):
-					try:
-						value = datetime.strptime(value, "%Y-%m-%d").date()
-					except Exception as e:
-						raise DateParseError(value) from e
-				rel_values[rel_field.name] = value
+			rel_values[rel_field.name] = self.parser.parse_value(values[i])
 
 		new_relation = Relation(rel_type, from_id, to_id, rel_values, rel_type_obj)
 		self.relations.append(new_relation)
@@ -173,9 +166,16 @@ class GraphiteEngine:  # pylint: disable=too-many-instance-attributes
 		"""Get node by ID"""
 		return self.nodes.get(node_id)
 
-	def get_nodes_of_type(self, node_type: str) -> List[Node]:
+	def get_nodes_of_type(self, node_type: str, with_subtypes: bool = True) -> List[Node]:
 		"""Get all nodes of a specific type"""
-		return self.node_by_type.get(node_type, [])
+		nodes: List[Node] = self.node_by_type.get(node_type, [])
+		if with_subtypes:
+			for ntype in self.node_types.values():
+				if ntype.parent and ntype.parent.name == node_type:
+					for new_node in self.get_nodes_of_type(ntype.name):
+						if new_node not in nodes:
+							nodes.append(new_node)
+		return nodes
 
 	def get_relations_from(self, node_id: str, rel_type: str = None) -> List[Relation]:
 		"""Get relations from a node"""
@@ -350,7 +350,7 @@ class GraphiteEngine:  # pylint: disable=too-many-instance-attributes
 			# noinspection PyTypeChecker
 			json.dump(data, f, cls=GraphiteJSONEncoder, indent=2, ensure_ascii=False)
 
-	def load_safe(self, filename: str, max_size_mb: int = 100, validate_schema: bool = True) -> None:
+	def load_safe(self, filename: str, max_size_mb: int | float = 100, validate_schema: bool = True) -> None:
 		"""
 		Safely load database with security checks
 

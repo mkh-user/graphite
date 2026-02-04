@@ -2,13 +2,34 @@
 Parser for Graphite DSL
 """
 import re
+from datetime import datetime
 from typing import Any, List, Optional, Tuple
 
-from .exceptions import SchemaError
+from .exceptions import DateParseError, SchemaError
 from .types import DataType, Field
 
 class GraphiteParser:
 	"""Parser for Graphite DSL"""
+
+	@staticmethod
+	def parse_value(value: Any) -> Any:
+		if not isinstance(value, str):
+			return value
+		value = value.strip()
+		if value.startswith('"') and value.endswith('"'):
+			return value[1:-1]
+		if value.replace('-', '').isdigit() and '-' in value:  # Date-like
+			try:
+				return datetime.strptime(value, '%Y-%m-%d').date()
+			except ValueError as e:
+				raise DateParseError(value) from e
+		if value.isdigit() or (value.startswith('-') and value[1:].isdigit()):
+			return int(value)
+		if value.replace('.', '').isdigit() and value.count('.') == 1:
+			return float(value)
+		elif value.lower() in ('true', 'false'):
+			return value.lower() == 'true'
+		return value
 
 	@staticmethod
 	def parse_node_definition(line: str) -> Tuple[str, List[Field], str]:
@@ -111,22 +132,7 @@ class GraphiteParser:
 
 		node_type = parts[0].strip()
 		node_id = parts[1].strip()
-		values = []
-
-		for val in parts[2:]:
-			val = val.strip()
-			if val.startswith('"') and val.endswith('"'):
-				values.append(val[1:-1])
-			elif val.replace('-', '').isdigit() and '-' in val:  # Date-like
-				values.append(val)
-			elif val.isdigit() or (val.startswith('-') and val[1:].isdigit()):
-				values.append(int(val))
-			elif val.replace('.', '').isdigit() and val.count('.') == 1:
-				values.append(float(val))
-			elif val.lower() in ('true', 'false'):
-				values.append(val.lower() == 'true')
-			else:
-				values.append(val)
+		values = list(map(GraphiteParser.parse_value, parts[2:]))
 
 		return node_type, node_id, values
 
@@ -146,7 +152,7 @@ class GraphiteParser:
 		rel_part = match.group(3) or match.group(4)
 		rel_parts = [p.strip() for p in rel_part.split(',')]
 		rel_type = rel_parts[0]
-		attributes = rel_parts[1:] if len(rel_parts) > 1 else []
+		attributes = list(map(GraphiteParser.parse_value, rel_parts[1:]) if len(rel_parts) > 1 else [])
 
 		# Parse direction
 		if '->' in line:

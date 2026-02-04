@@ -43,5 +43,8 @@ class Relation:
 		"""Get a field from this relation."""
 		return self.values.get(field_name)
 
+	def __getitem__(self, key):
+		return self.get(key)
+
 	def __repr__(self):
 		return f"Relation({self.type_name}:{self.from_node}->{self.to_node})"

@@ -3,6 +3,8 @@ Possible exceptions in Graphite
 """
 from typing import Any
 
+from src.graphite import Field
+
 class GraphiteError(Exception):
 	"""Base exception for all Graphite errors"""
 
@@ -32,7 +34,7 @@ class NotFoundError(GraphiteError):
 
 class InvalidPropertiesError(GraphiteError):
 	"""Invalid properties error"""
-	def __init__(self, valid_properties: list, got_count: int):
+	def __init__(self, valid_properties: list[Field], got_count: int):
 		self.valid_properties = valid_properties
 		self.got_count = got_count
 		super().__init__(
