@@ -107,6 +107,19 @@ Graphite exists for cases where this cost is **not justified**.
 
 It provides graph modeling **without adding another system to operate**.
 
+### Comparation
+
+| Feature | Neo4j | Graphite | Custom Graph Engine |
+|---------|-------|---------|------------------|
+| **Bug Safety** | **Very High:**<br>Mature & tested | **High:**<br>Unit tests, monitored | **Low-Medium:**<br>You manage testing |
+| **Implementation** | **High:**<br>Setup & Cypher | **Low:**<br>Embed easily | **Very High:**<br>Build from scratch |
+| **Flexibility** | **High:**<br>Complex queries | **Medium:**<br>Limited but extendable | **Very High:**<br>Fully customizable |
+| **Performance** | **High:**<br>Optimized large data | **Medium:**<br>Good for small/medium | **Unknown:**<br>Depends on design |
+| **Scalability** | **High:**<br>Cluster & sharding | **Medium:**<br>Single-node & Base types | **Unknown:**<br>Possible but hard |
+| **Support / Community** | **Very High:**<br>Large & active | **Medium:**<br>Docstrings only | **Low:**<br>Internal only |
+| **Customizability** | **Low:**<br>Limited to API | **High:**<br>Open source | **Very High:**<br>Full control |
+| **Ease of Use** | **Medium:**<br>Learn Cypher | **High:**<br>Quick & simple | **Low:**<br>Needs study & test |
+
 ---
 
 ## Example Usage
