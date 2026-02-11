@@ -121,7 +121,17 @@ class QueryResult:
 
 			for edge in edges:
 				result_edges.append(edge)
-				target_id = edge.to_node if direction == 'outgoing' else edge.from_node
+				if direction == 'outgoing':
+					target_id = edge.to_node
+				elif direction == 'incoming':
+					target_id = edge.from_node
+				else:
+					target_id = (
+						edge.to_node
+						if edge.from_node == processing_node.id
+						else edge.from_node
+					)
+
 				target_node = self.engine.get_node(target_id)
 				if target_node:
 					result_nodes.append(target_node)

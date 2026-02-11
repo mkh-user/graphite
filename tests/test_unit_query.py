@@ -162,6 +162,34 @@ class TestQueryResult: # pylint: disable=too-many-public-methods
 		# Alice has outgoing WORKS_AT, no incoming WORKS_AT
 		assert len(all_relations.nodes) == 1
 
+	def test_both_method_mixed_incoming_and_outgoing(self, clean_engine):
+		"""Test both traversal when a node has incoming and outgoing of same relation type"""
+		engine = clean_engine
+
+		engine.define_node(
+			"""
+		node Person
+		name: string
+		"""
+		)
+		engine.define_relation(
+			"""
+		relation KNOWS
+		Person -> Person
+		"""
+		)
+
+		engine.create_node("Person", "person1", "Alice")
+		engine.create_node("Person", "person2", "Bob")
+		engine.create_node("Person", "person3", "Charlie")
+
+		engine.create_relation("person1", "person2", "KNOWS")
+		engine.create_relation("person3", "person1", "KNOWS")
+
+		related_nodes = engine.query.Person.where('name = "Alice"').both("KNOWS")
+
+		assert set(related_nodes.ids()) == {"person2", "person3"}
+
 	def test_limit(self, populated_engine):
 		"""Test limiting results"""
 		result = populated_engine.query.Person
