@@ -1,2 +1,5 @@
 [FORMAT]
 indent-string=\t
+
+[tests.*]
+disable = import-error
