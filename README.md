@@ -88,7 +88,7 @@ Install from **PyPI**:
 
 ```bash
 pip install graphitedb
-````
+```
 
 ---
 
