@@ -4,7 +4,7 @@ A clean, embedded graph database engine for Python.
 
 ---
 
-**Graphite** is a lightweight yet flexible **graph database engine** implemented in pure Python.  
+**Graphite** is a lightweight yet flexible **graph database engine** implemented in pure Python.
 It is designed to model graph-like data inside large Python codebases **without introducing the complexity of an external database**.
 
 ---
@@ -12,7 +12,7 @@ It is designed to model graph-like data inside large Python codebases **without 
 ## Features
 
 ### 🧩 Embedded by Design
-Graphite is not a separate service or infrastructure dependency.  
+Graphite is not a separate service or infrastructure dependency.
 It lives inside your project, evolves with it, and collaborates naturally with your existing code.
 
 No servers. No ports. No deployment headaches.
@@ -20,7 +20,7 @@ No servers. No ports. No deployment headaches.
 ---
 
 ### 🛠 Ready-made, Customizable Module
-Graphite is intentionally simple and hackable.  
+Graphite is intentionally simple and hackable.
 You can fork it, modify it, or deeply integrate it into your project without fighting rigid abstractions.
 
 The database adapts to your project — not the other way around.
@@ -38,7 +38,7 @@ Your editor already knows how to autocomplete and document your queries.
 ---
 
 ### 🔍 Query? It’s Code.
-Queries are built by chaining Python methods on the `QueryResult` object.
+Queries are built by chaining Python functions on the `QueryResult` object.
 
 - Zero parsing cost
 - Full IDE support
@@ -109,16 +109,16 @@ It provides graph modeling **without adding another system to operate**.
 
 ### Comparation
 
-| Feature | Neo4j | Graphite | Custom Graph Engine |
-|---------|-------|---------|------------------|
-| **Bug Safety** | **🥇Very High:**<br>Mature & tested | **🥈High:**<br>Unit tests, monitored | **🥉Low-Medium:**<br>You manage testing |
-| **Implementation** | **🥈High:**<br>Setup & Cypher | **🥇Low:**<br>Embed easily | **🥉Very High:**<br>Build from scratch |
-| **Flexibility** | **🥈High:**<br>Complex queries | **🥉Medium:**<br>Limited but extendable | **🥇Very High:**<br>Fully customizable |
-| **Performance** | **🥇High:**<br>Optimized large data | **🥈Medium:**<br>Good for small/medium | **❓Unknown:**<br>Depends on design |
-| **Scalability** | **🥇High:**<br>Cluster & sharding | **🥈Medium:**<br>Single-node & Base types | **❓Unknown:**<br>Possible but hard |
-| **Support / Community** | **🥇Very High:**<br>Large & active | **🥈Medium:**<br>Docstrings only | **🥉Low:**<br>Internal only |
-| **Customizability** | **🥉Low:**<br>Limited to API | **🥈High:**<br>Open source | **🥇Very High:**<br>Full control |
-| **Ease of Use** | **🥈Medium:**<br>Learn Cypher | **🥇High:**<br>Quick & simple | **🥉Low:**<br>Needs study & test |
+| Feature                 | Neo4j                               | Graphite                                  | Custom Graph Engine                     |
+|-------------------------|-------------------------------------|-------------------------------------------|-----------------------------------------|
+| **Bug Safety**          | **🥇Very High:**<br>Mature & tested | **🥈High:**<br>Unit tests, monitored      | **🥉Low-Medium:**<br>You manage testing |
+| **Implementation**      | **🥈High:**<br>Setup & Cypher       | **🥇Low:**<br>Embed easily                | **🥉Very High:**<br>Build from scratch  |
+| **Flexibility**         | **🥈High:**<br>Complex queries      | **🥉Medium:**<br>Limited but extendable   | **🥇Very High:**<br>Fully customizable  |
+| **Performance**         | **🥇High:**<br>Optimized large data | **🥈Medium:**<br>Good for small/medium    | **❓Unknown:**<br>Depends on design      |
+| **Scalability**         | **🥇High:**<br>Cluster & sharding   | **🥈Medium:**<br>Single-node & Base types | **❓Unknown:**<br>Possible but hard      |
+| **Support / Community** | **🥇Very High:**<br>Large & active  | **🥈Medium:**<br>Docstrings only          | **🥉Low:**<br>Internal only             |
+| **Customizability**     | **🥉Low:**<br>Limited to API        | **🥈High:**<br>Open source                | **🥇Very High:**<br>Full control        |
+| **Ease of Use**         | **🥈Medium:**<br>Learn Cypher       | **🥇High:**<br>Quick & simple             | **🥉Low:**<br>Needs study & test        |
 
 ---
 
@@ -197,4 +197,10 @@ def example_complete_dsl_loading():
     return engine
 ```
 
-More examples are available in `example.py` in the GitHub repository.
+More examples are available in `examples/` in the GitHub repository.
+
+See `docs/` for documentation and API reference.
+
+---
+
+_MIT 2026 Mahan Khalili_
