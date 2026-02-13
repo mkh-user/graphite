@@ -58,4 +58,5 @@ result = (engine.query.User
 
 print(result)
 
-print(engine.query.User.order_by("name").first()["name"])
+user = engine.query.User.order_by("name", descending=True).first()
+print(user.id if user else "No users found")
