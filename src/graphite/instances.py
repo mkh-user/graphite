@@ -4,6 +4,8 @@ Node and relation instance objects
 from __future__ import annotations
 from dataclasses import dataclass
 from typing import Dict, Any, Optional
+
+from .exceptions import NotFoundError
 from .types import NodeType, RelationType
 
 @dataclass
@@ -20,6 +22,12 @@ class Node:
 	def get(self, field_name: str) -> Any:
 		"""Get a field from this node."""
 		return self.values.get(field_name)
+
+	def set(self, field_name: str, value: Any) -> None:
+		"""Set a field in this node."""
+		if field_name not in self.values:
+			raise NotFoundError("Field", field_name)
+		self.values[field_name] = value
 
 	def __getitem__(self, key):
 		return self.get(key)
@@ -42,6 +50,12 @@ class Relation:
 	def get(self, field_name: str) -> Any:
 		"""Get a field from this relation."""
 		return self.values.get(field_name)
+
+	def set(self, field_name: str, value: Any) -> None:
+		"""Set a field in this relation."""
+		if field_name not in self.values:
+			raise NotFoundError("Field", field_name)
+		self.values[field_name] = value
 
 	def __getitem__(self, key):
 		return self.get(key)

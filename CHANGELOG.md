@@ -10,6 +10,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Guides and documentation.
+- **Engine API:** `undefine_node()`, `undefine_relation()`, `remove_node()`, `remove_relation()`
+- `set()` function for `Node` and `Relation`
+- **Query:** `set()`, `remove()`, `remove_relations()`, `with_type()`, `with_field()`, `paginate()`, `union()`, `exclude()`, `intersect()`, `sum()`, `avg()`, `min()`, `max()`, `group_by()`, `relations()`
+- **Query:** Starting query from all nodes with `engine.query.all()`
+- **Query:** Traverse in all relation types
+
+### Changed
+
+- **Query:** Keep all relations after `limit()` query
+
+### Fixed
+
+- Fixed order while saving database for relations.
 
 ## [0.2.2] - 2026-02-12
 

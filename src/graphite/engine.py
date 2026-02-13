@@ -190,6 +190,84 @@ class GraphiteEngine:  # pylint: disable=too-many-instance-attributes
 			return [r for r in all_rels if r.type_name == rel_type]
 		return all_rels
 
+	def undefine_node(self, node_type: str) -> None:
+		"""Undefine a node type"""
+		if node_type not in self.node_types:
+			raise NotFoundError(
+				"Node type",
+				node_type
+			)
+		for instance in self.node_by_type[node_type].copy():
+			self.remove_node(instance)
+		relation_types_to_remove = []
+		node_types_to_remove = []
+		for relation_type in self.relation_types.values():
+			if relation_type.from_type == node_type:
+				relation_types_to_remove.append(relation_type.name)
+			elif relation_type.to_type == node_type:
+				relation_types_to_remove.append(relation_type.name)
+		for ntype in self.node_types.values():
+			if ntype.parent == self.node_types[node_type]:
+				node_types_to_remove.append(ntype.name)
+		for processing_rel in relation_types_to_remove:
+			if processing_rel in self.relation_types:
+				self.undefine_relation(processing_rel)
+		for processing_node in node_types_to_remove:
+			if processing_node in self.node_types:
+				self.undefine_node(processing_node)
+		self.node_by_type.pop(node_type, None)
+		self.node_types.pop(node_type, None)
+
+	def undefine_relation(self, relation_type: str, _is_reverse: bool = False) -> None:
+		"""Undefine a relation type"""
+		if relation_type not in self.relation_types:
+			raise NotFoundError(
+				"Relation type",
+				relation_type
+			)
+		for instance in self.relations_by_type[relation_type].copy():
+			self.remove_relation(instance)
+		if not _is_reverse and self.relation_types[relation_type].reverse_name:
+			self.undefine_relation(self.relation_types[relation_type].reverse_name, True)
+		self.relation_types.pop(relation_type)
+		self.relations_by_type.pop(relation_type, None)
+
+	def remove_node(self, node: Union[Node, str]) -> None:
+		"""Remove a node"""
+		if isinstance(node, str):
+			if node not in self.nodes:
+				raise NotFoundError(
+					"Node",
+					node
+				)
+			node_type = self.nodes[node].type_name
+		else:
+			if node.id not in self.nodes or self.nodes[node.id] is not node:
+				raise NotFoundError(
+					"Node",
+					node.id
+				)
+			node_type = node.type_name
+			node = node.id
+		for from_rel in self.get_relations_from(node).copy():
+			self.remove_relation(from_rel)
+		for to_rel in self.get_relations_to(node).copy():
+			self.remove_relation(to_rel)
+		removed = self.nodes.pop(node)
+		self.node_by_type[node_type].remove(removed)
+
+	def remove_relation(self, relation: Relation) -> None:
+		"""Remove a relation"""
+		if relation not in self.relations:
+			raise NotFoundError(
+				"Relation",
+				str(relation)
+			)
+		self.relations.remove(relation)
+		self.relations_by_type[relation.type_name].remove(relation)
+		self.relations_by_from[relation.from_node].remove(relation)
+		self.relations_by_to[relation.to_node].remove(relation)
+
 	# =============== BULK LOADING ===============
 
 	def load_dsl(self, dsl: str):
@@ -471,7 +549,15 @@ class GraphiteEngine:  # pylint: disable=too-many-instance-attributes
 			"node_types"       : list(self.node_types.values()),
 			"relation_types"   : list(self.relation_types.values()),
 			"nodes"            : list(self.nodes.values()),
-			"relations"        : list(self.relations),
+			"relations"        : sorted(
+				self.relations,
+				key=lambda r: (
+					r.type_name,
+					r.from_node,
+					r.to_node,
+					sorted((k, str(v)) for k, v in r.values.items())
+				)
+			),
 			"node_by_type"     : dict(self.node_by_type.items()),
 			"relations_by_type": dict(self.relations_by_type.items()),
 			"relations_by_from": dict(self.relations_by_from.items()),
