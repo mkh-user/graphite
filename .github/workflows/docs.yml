@@ -1,0 +1,51 @@
+name: Build & Deploy Docs
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'docs/**'
+      - 'mkdocs.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'docs/**'
+      - 'mkdocs.yml'
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  build_mkdocs:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.9'
+      - name: Install packages with pip
+        run: pip install mkdocs 'mkdocstrings[python]'
+      - name: Build with MkDocs
+        run: mkdocs build --config-file mkdocs.yml
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site/
+  deploy_mkdocs:
+    if: github.ref == 'refs/heads/main'
+    needs: build_mkdocs
+    environment:
+      name: github-pages
+      url: https://mkh-user.github.io/graphite
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

@@ -1,0 +1,34 @@
+site_name: Graphite Docs
+site_url: https://mkh-user.github.io/graphite
+repo_url: https://github.com/mkh-user/graphite
+repo_name: GitHub
+edit_uri: blob/main/docs
+
+site_description: Online documentation for Graphite
+site_author: Mahan Khalili
+copyright: Copyright © 2026 Mahan Khalili
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        # See: https://mkdocstrings.github.io/python/usage/
+        python:
+          options:
+            docstring_style: sphinx
+markdown_extensions:
+  - admonition
+
+nav:
+  - Home: index.md
+  - Introduction:
+      - Quick Start: quickstart.md
+  - Developer Guides:
+      - Contributing Guide: CONTRIBUTING.md
+      - Development Setup: development-setup.md
+
+theme:
+  name: readthedocs
+  prev_next_buttons_location: both
+
+draft_docs: drafts/
