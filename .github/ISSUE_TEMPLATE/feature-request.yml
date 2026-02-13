@@ -1,0 +1,61 @@
+name: Feature Request
+description: Suggest a new feature or improvement.
+
+labels: ["type: enhancement", "triage"]
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Propose a new capability for Graphite.
+
+  - type: checkboxes
+    attributes:
+      label: Preliminary Checks
+      options:
+        - label: I have searched existing issues and discussions
+          required: true
+
+  - type: textarea
+    attributes:
+      label: Problem Statement
+      description: What limitation or problem does this solve?
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
+      label: Proposed Solution
+      description: Describe your proposed approach.
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
+      label: Alternatives Considered
+      description: Other solutions evaluated.
+    validations:
+      required: false
+
+  - type: dropdown
+    attributes:
+      label: Impact Level
+      options:
+        - Small improvement
+        - Medium feature
+        - Large architectural change
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
+      label: Additional Context
+    validations:
+      required: false
+
+  - type: checkboxes
+    attributes:
+      label: Code of Conduct
+      options:
+        - label: I agree to follow this project's Code of Conduct
+          required: true

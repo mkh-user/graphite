@@ -1,0 +1,87 @@
+name: Bug Report
+description: Report a defect or unexpected behavior in Graphite.
+
+labels: ["type: bug", "triage"]
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for reporting a bug.
+        Please complete all required fields to help us investigate efficiently.
+
+  - type: checkboxes
+    attributes:
+      label: Preliminary Checks
+      options:
+        - label: I have searched existing issues
+          required: true
+        - label: I am using a supported version
+          required: true
+
+  - type: textarea
+    attributes:
+      label: Describe the Bug
+      description: Clear and concise description of the issue.
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
+      label: Steps to Reproduce
+      description: Provide minimal reproducible steps.
+      placeholder: |
+        1.
+        2.
+        3.
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
+      label: Expected Behavior
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
+      label: Logs / Error Output
+      description: Paste stack traces or error messages if available.
+    validations:
+      required: false
+
+  - type: dropdown
+    attributes:
+      label: Version
+      options:
+        - v0.1.x
+        - v0.2.x
+        - Main branch
+    validations:
+      required: true
+
+  - type: dropdown
+    attributes:
+      label: Severity
+      options:
+        - 🟢 Minor
+        - 🟡 Major
+        - 🔴 Critical
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
+      label: Environment
+      placeholder: |
+        - OS:
+        - Python version:
+    validations:
+      required: false
+
+  - type: checkboxes
+    attributes:
+      label: Code of Conduct
+      options:
+        - label: I agree to follow this project's Code of Conduct
+          required: true

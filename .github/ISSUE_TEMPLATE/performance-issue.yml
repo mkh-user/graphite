@@ -1,0 +1,69 @@
+name: Performance Issue
+description: Report slow execution, high memory usage, or scaling problems.
+
+labels: ["type: performance", "triage"]
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Report a performance-related issue.
+
+  - type: checkboxes
+    attributes:
+      label: Preliminary Checks
+      options:
+        - label: I have searched existing issues
+          required: true
+
+  - type: textarea
+    attributes:
+      label: Performance Problem
+      description: Describe the slowdown or resource issue.
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
+      label: Benchmark or Metrics
+      description: Provide measurements if available.
+      placeholder: |
+        - Before:
+        - After:
+        - Dataset size:
+    validations:
+      required: false
+
+  - type: textarea
+    attributes:
+      label: Reproduction Scenario
+      description: Provide steps to reproduce the performance issue.
+    validations:
+      required: true
+
+  - type: dropdown
+    attributes:
+      label: Impact Level
+      options:
+        - 🟢 Minor
+        - 🟡 Significant
+        - 🔴 Blocking
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
+      label: Environment
+      placeholder: |
+        - OS:
+        - CPU:
+        - Memory:
+    validations:
+      required: false
+
+  - type: checkboxes
+    attributes:
+      label: Code of Conduct
+      options:
+        - label: I agree to follow this project's Code of Conduct
+          required: true
