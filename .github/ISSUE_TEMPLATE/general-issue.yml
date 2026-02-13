@@ -1,0 +1,50 @@
+name: General Issue
+description: Open a general discussion or report something that does not fit other categories.
+
+labels: ["type: other", "triage"]
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this template for issues that do not fit other categories.
+
+  - type: checkboxes
+    attributes:
+      label: Preliminary Checks
+      options:
+        - label: I have searched existing issues and discussions
+          required: true
+
+  - type: textarea
+    attributes:
+      label: Topic
+      description: Describe the issue or discussion topic.
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
+      label: Context
+      description: Provide additional context if needed.
+    validations:
+      required: false
+
+  - type: dropdown
+    attributes:
+      label: Category
+      options:
+        - Question
+        - Discussion
+        - Refactor idea
+        - Maintenance
+        - Other
+    validations:
+      required: true
+
+  - type: checkboxes
+    attributes:
+      label: Code of Conduct
+      options:
+        - label: I agree to follow this project's Code of Conduct
+          required: true

@@ -1,0 +1,44 @@
+name: Documentation Improvement
+description: Report unclear, missing, or incorrect documentation.
+
+labels: ["type: documentation", "triage"]
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Help us improve Graphite documentation.
+
+  - type: checkboxes
+    attributes:
+      label: Preliminary Checks
+      options:
+        - label: I have searched existing issues
+          required: true
+
+  - type: textarea
+    attributes:
+      label: Location
+      description: Link to the file or section needing improvement.
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
+      label: Problem Description
+      description: What is unclear, missing, or incorrect?
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
+      label: Suggested Improvement
+    validations:
+      required: false
+
+  - type: checkboxes
+    attributes:
+      label: Code of Conduct
+      options:
+        - label: I agree to follow this project's Code of Conduct
+          required: true

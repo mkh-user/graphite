@@ -1,11 +1,7 @@
 #file: noinspection GrazieInspection
 name: Pytest
 
-on:
-  push:
-    branches: [ "Main" ]
-  pull_request:
-    branches: [ "Main" ]
+on: [pull_request]
 
 jobs:
   test:
