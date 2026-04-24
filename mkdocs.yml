@@ -23,6 +23,16 @@ nav:
   - Home: index.md
   - Introduction:
       - Quick Start: quickstart.md
+      - Graph Model: graph-model.md
+      - Creating Data Model: creating-data-model.md
+      - Query Engine: query-engine.md
+  - References:
+      - Module-Level: references/module.md
+      - DSL: references/dsl.md
+      - Engine: references/engine.md
+      - Data Types: references/data.md
+      - Query: references/query.md
+      - Migration: references/migration.md
   - Developer Guides:
       - Contributing Guide: CONTRIBUTING.md
       - Development Setup: development-setup.md

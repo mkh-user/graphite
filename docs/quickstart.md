@@ -185,5 +185,11 @@ print(f"\nFriends of friends of Joe Doe: {[f['name'] for f in friends_of_friends
 
 ## Learn to use
 
-> **Note:**  
-> This section will be completed.
+Documentation is available in Three sections:
+
+- **Introduction:** Know logical design of Graphite to use its power.
+- **References:** Detailed information about all available tools in Graphite.
+- **Developer Guides:** Information about setup, configure, use, or even improve Graphite behind the scene.
+
+Documentation navigates you step by step as far as you want to know. Now you can go to the next page to continue
+learning about Graphite and start production use when you want.
