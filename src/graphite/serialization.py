@@ -28,7 +28,8 @@ def _serialize_instance(instance: Union[Node, Relation]) -> dict[str, Any]:
 class GraphiteJSONEncoder(json.JSONEncoder):
 	"""Custom JSON encoder for Graphite data structures"""
 
-	def default(self, o: Any) -> Any:  # pylint: disable=too-many-return-statements
+	# pylint: disable=too-many-return-statements
+	def default(self, o: Any) -> Any:
 		# Handle date/datetime objects
 		if isinstance(o, (date, datetime)):
 			return {
@@ -95,8 +96,8 @@ class GraphiteJSONEncoder(json.JSONEncoder):
 
 		return super().default(o)
 
-# pylint: disable=too-many-branches
-def graphite_object_hook(dct: dict[str, Any]) -> Any:  # pylint: disable=too-many-return-statements
+# pylint: disable=too-many-return-statements, too-many-branches
+def graphite_object_hook(dct: dict[str, Any]) -> Any:
 	"""Decode Graphite-specific objects from JSON."""
 	if GRAPHITE_TYPE_FIELD not in dct:
 		return dct

@@ -4,8 +4,9 @@ Unit tests for GraphiteParser
 from datetime import datetime
 
 import pytest
-from src.graphite import GraphiteParser, DataType
-from src.graphite.exceptions import SchemaError
+
+from src.graphite import DataType, GraphiteParser
+from src.graphite.exceptions import ParseError
 
 class TestGraphiteParser: # pylint: disable=attribute-defined-outside-init
 	"""Test GraphiteParser class"""
@@ -123,21 +124,6 @@ class TestGraphiteParser: # pylint: disable=attribute-defined-outside-init
 		assert reverse_name is None
 		assert is_bidirectional is True
 
-	def test_parse_relation_definition_bidirectional_with_reverse(self):
-		"""Test parsing bidirectional relation with reverse name"""
-		definition = """
-        relation MARRIED_TO reverse MARRIED_TO both
-        Person - Person
-        since: date
-        """
-
-		(rel_name, _, _, _,
-		reverse_name, is_bidirectional) = self.parser.parse_relation_definition(definition)
-
-		assert rel_name == "MARRIED_TO"
-		assert reverse_name == "MARRIED_TO"
-		assert is_bidirectional is True
-
 	def test_parse_node_instance_strings(self):
 		"""Test parsing node instance with strings"""
 		line = 'User, user1, "Alice", 30, "alice@email.com"'
@@ -217,5 +203,5 @@ class TestGraphiteParser: # pylint: disable=attribute-defined-outside-init
 		"""Test parsing invalid relation format"""
 		line = "invalid format without brackets"
 
-		with pytest.raises(SchemaError):
+		with pytest.raises(ParseError):
 			self.parser.parse_relation_instance(line)

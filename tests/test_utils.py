@@ -1,8 +1,8 @@
 """
 Tests for utility functions
 """
-from src.graphite.utils import node, relation, engine, SecurityWarning
 from src.graphite.engine import GraphiteEngine
+from src.graphite.utils import SecurityWarning, engine, node, relation
 
 class TestUtils:
 	"""Test utility functions"""

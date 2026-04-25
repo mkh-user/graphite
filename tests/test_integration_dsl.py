@@ -64,7 +64,7 @@ class TestDSLIntegration:
         person1 -[FRIENDS_WITH, "2019-05-20"]- person2
         """
 
-		engine.load_dsl(dsl)
+		engine.parse(dsl)
 
 		# Verify schema was loaded
 		assert "Person" in engine.node_types
@@ -120,7 +120,7 @@ class TestDSLIntegration:
         Admin, admin1, "admin_1", "2023-03-01", "admin", "admin123", "all"
         """
 
-		engine.load_dsl(dsl)
+		engine.parse(dsl)
 
 		# Verify inheritance hierarchy
 		admin_type = engine.node_types["Admin"]
@@ -164,7 +164,7 @@ class TestDSLIntegration:
         Company, c1, "TechCorp", "2020-01-01"
         """
 
-		engine.load_dsl(dsl)
+		engine.parse(dsl)
 
 		assert "Person" in engine.node_types
 		assert "Company" in engine.node_types
@@ -199,7 +199,7 @@ class TestDSLIntegration:
         p1 -[WORKS_AT, "Engineer", "Engineering", "2021-03-15", 85000.50]-> c1
         """
 
-		engine.load_dsl(dsl)
+		engine.parse(dsl)
 
 		# Verify all fields were parsed
 		person_type = engine.node_types["Person"]

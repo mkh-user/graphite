@@ -9,20 +9,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Guides and documentation.
-- **Engine API:** `undefine_node()`, `undefine_relation()`, `remove_node()`, `remove_relation()`
+- Guides and documentation
+- Complete in-code documentation
+- **Engine API:** `undefine_node()`, `undefine_relation()`, `remove_node()`, `remove_relation()`, `is_node_from_type()`
 - `set()` function for `Node` and `Relation`
 - **Query:** `set()`, `remove()`, `remove_relations()`, `with_type()`, `with_field()`, `paginate()`, `union()`, `exclude()`, `intersect()`, `sum()`, `avg()`, `min()`, `max()`, `group_by()`, `relations()`
 - **Query:** Starting query from all nodes with `engine.query.all()`
 - **Query:** Traverse in all relation types
+- Validate save file version before load
+- Validate source and target node types
+- Enhanced error handling, warnings, error messages, and checks
+- Add `accept_any_extension` to `load_safe()` to disable file extension check
+- Additional type hints
+- **Query:** `include_parent_types` for `whit_type()` to check parent types too
+- **Query:** `auto_distinct` for `union()` to make result nodes distinct automatically
+- **Query:** Add all relation to query when starting point is `.all()`
 
 ### Changed
 
 - **Query:** Keep all relations after `limit()` query
+- Return of `Migration.convert_pickle_to_json()` from `bool` to `None`, Standard error handling used
+- `SchemaError` -> `ParseError`
+
+### Deprecated
+
+- `load_dsl()` -> `parse()`
 
 ### Fixed
 
-- Fixed order while saving database for relations.
+- Fixed order while saving database for relations
+- Fixed support for comments in properties section
+- Fixed weak line type detection in DSL
+- Relation types can't be bidirectional and reverse named at the same time anymore
+- `parser.parse_relation_instance()` return signature
+- Fixed editor confusion at query chain
+- Fixed `TypeError` instead of `ConditionError` at query condition evaluation
+- Fixed wrong example in `QueryBuilder` docstrings
+- Fixed silent `None` or `[]` for invalid `get_node()`, `get_relations_from()`, `get_relations_to()` calls
+- Fixed wrong error handling for `Migration` class
 
 ## [0.2.2] - 2026-02-12
 

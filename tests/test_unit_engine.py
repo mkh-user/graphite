@@ -2,8 +2,10 @@
 Unit tests for GraphiteEngine core functionality
 """
 from datetime import date
+
 import pytest
-from src.graphite.exceptions import FieldError, NotFoundError, InvalidPropertiesError
+
+from src.graphite.exceptions import FieldError, InvalidPropertiesError, NotFoundError
 
 class TestGraphiteEngineSchema:
 	"""Test GraphiteEngine schema definition methods"""
@@ -363,7 +365,8 @@ class TestGraphiteEngineQueryMethods:
 		assert node.values["name"] == "Alice"
 
 		# Non-existent node
-		assert engine.get_node("non_existent") is None
+		with pytest.raises(NotFoundError):
+			engine.get_node("non_existent")
 
 	def test_get_nodes_of_type(self, populated_engine):
 		"""Test getting all nodes of a type"""
@@ -392,8 +395,9 @@ class TestGraphiteEngineQueryMethods:
 		assert len(works_at_relations) == 1
 		assert works_at_relations[0].type_name == "WORKS_AT"
 
-		# Non-existent node returns empty list
-		assert engine.get_relations_from("non_existent") == []
+		# Non-existent node
+		with pytest.raises(NotFoundError):
+			engine.get_relations_from("non_existent")
 
 	def test_get_relations_to(self, populated_engine):
 		"""Test getting relations to a node"""
@@ -408,7 +412,8 @@ class TestGraphiteEngineQueryMethods:
 		assert len(works_at_relations) == 2
 
 		# Non-existent node returns empty list
-		assert engine.get_relations_to("non_existent") == []
+		with pytest.raises(NotFoundError):
+			engine.get_relations_to("non_existent")
 
 	def test_clear_method(self, populated_engine):
 		"""Test clearing all data"""

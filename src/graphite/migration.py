@@ -1,10 +1,11 @@
 """
 Helper module to update Graphite databases and handle other migrations
 """
-import warnings
-import pickle
-import os
 import glob
+import os
+import pickle
+import warnings
+
 from .engine import GraphiteEngine
 from .utils import SecurityWarning
 
@@ -14,75 +15,67 @@ class Migration:
 	@staticmethod
 	def convert_pickle_to_json(
 		pickle_file: str, json_file: str, delete_original: bool = False
-	) -> bool:
+	) -> None:
 		"""
 		Convert a pickle file to JSON format
 
-		Args:
-			pickle_file: Path to existing pickle file
-			json_file: Path for new JSON file
-			delete_original: Whether to delete pickle file after conversion
+		:param pickle_file: Path to existing pickle file
+		:param json_file: Path for new JSON file
+		:param delete_original: Whether to delete pickle file after conversion
 
-		Returns:
-			True if successful, False otherwise
+		:return: None
 		"""
-		try:
-			warnings.warn(
-				"'convert_pickle_to_json' will be deprecated because of security reasons. "
-				"Please convert your pickle files to JSON and don't use old files anymore.",
-				PendingDeprecationWarning
-			)
+		warnings.warn(
+			"'convert_pickle_to_json' will be deprecated because of security reasons. "
+			"Please convert your pickle files to JSON and don't use old files anymore.",
+			PendingDeprecationWarning
+		)
 
-			# Load from pickle (with safety warnings)
-			warnings.warn(
-				f"Loading from pickle file: {pickle_file}. "
-				"Pickle files can contain malicious code. "
-				"Only load files from trusted sources.",
-				SecurityWarning
-			)
+		# Load from pickle (with safety warnings)
+		warnings.warn(
+			f"Loading from pickle file: {pickle_file}. "
+			"Pickle files can contain malicious code. "
+			"Only load files from trusted sources.",
+			SecurityWarning
+		)
 
-			with open(pickle_file, 'rb') as f:
-				data = pickle.load(f)
+		with open(pickle_file, 'rb') as f:
+			data = pickle.load(f)
 
-			# Create a new engine with the loaded data
-			converter_engine = GraphiteEngine()
+		# Create a new engine with the loaded data
+		converter_engine = GraphiteEngine()
 
-			# Restore data structures
-			converter_engine.node_types = data['node_types']
-			converter_engine.relation_types = data['relation_types']
-			converter_engine.nodes = data['nodes']
-			converter_engine.relations = data['relations']
-			converter_engine.node_by_type = data['node_by_type']
-			converter_engine.relations_by_type = data['relations_by_type']
-			converter_engine.relations_by_from = data['relations_by_from']
-			converter_engine.relations_by_to = data['relations_by_to']
+		# Restore data structures
+		converter_engine.node_types = data['node_types']
+		converter_engine.relation_types = data['relation_types']
+		converter_engine.nodes = data['nodes']
+		converter_engine.relations = data['relations']
+		converter_engine.node_by_type = data['node_by_type']
+		converter_engine.relations_by_type = data['relations_by_type']
+		converter_engine.relations_by_from = data['relations_by_from']
+		converter_engine.relations_by_to = data['relations_by_to']
 
-			# Save to JSON
-			converter_engine.save(json_file)
+		# Save to JSON
+		converter_engine.save(json_file)
 
-			if delete_original:
-				os.unlink(pickle_file)
-				print(f"Converted {pickle_file} to {json_file} and deleted original")
-			else:
-				print(f"Converted {pickle_file} to {json_file}")
-
-			return True
-
-		except Exception as e: # pylint: disable=broad-exception-caught
-			print(f"Conversion failed: {e}")
-			return False
+		if delete_original:
+			os.unlink(pickle_file)
+			print(f"Converted {pickle_file} to {json_file} and deleted original")
+		else:
+			print(f"Converted {pickle_file} to {json_file}")
 
 	@staticmethod
 	def detect_pickle_and_convert_to_json(
 		directory: str, pattern: str = "*.db", delete_originals: bool = False
-	):
+	) -> None:
 		"""
 		Find and convert all pickle files in a directory
 
-		Args:
-			directory: Directory to scan
-			pattern: File pattern to match (default: *.db)
-			delete_originals: Whether to delete pickle files after conversion
+		:param directory: Directory to scan
+		:param pattern: File pattern to match (default: *.db)
+		:param delete_originals: Whether to delete pickle files after conversion
+
+		:return: None
 		"""
 		for pickle_file in glob.glob(os.path.join(directory, pattern)):
 			if pickle_file.endswith('.json'):

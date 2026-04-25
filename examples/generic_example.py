@@ -3,7 +3,7 @@ Runs a generic example for Graphite module.
 """
 from datetime import date
 # noinspection PyPackageRequirements
-import graphite # pylint: disable=import-error
+import graphite
 # import src.graphite as graphite # Just for test dev version
 
 engine = graphite.engine()
@@ -26,13 +26,13 @@ since: date
 """)
 
 # Or use helper functions
-#engine.load_dsl(node("User", name="string", age="int"))
+#engine.parse(node("User", name="string", age="int"))
 
-engine.load_dsl("""
+engine.parse("""
 node User from Person
 id: string
 """)
-engine.load_dsl("""
+engine.parse("""
 relation OWNER reverse OWNED_BY
 Person -> Object
 since: date

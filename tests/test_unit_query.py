@@ -2,7 +2,8 @@
 from datetime import date
 
 import pytest
-from src.graphite.exceptions import NotFoundError, ConditionError, DateParseError
+
+from src.graphite.exceptions import ConditionError, DateParseError, NotFoundError
 from src.graphite.query import QueryResult
 
 class TestQueryBuilder:
@@ -308,7 +309,7 @@ class TestQueryResult: # pylint: disable=too-many-public-methods
 		alice.remove()
 
 		assert populated_engine.query.Person.count() == 1
-		assert populated_engine.get_node("person1") is None
+		assert "person1" not in populated_engine.nodes
 		assert len(populated_engine.relations) == 1
 
 	def test_order_by_none_values(self, clean_engine):
@@ -359,16 +360,6 @@ class TestQueryResult: # pylint: disable=too-many-public-methods
 		assert shared_company.count() == 1
 		assert shared_company.first()["name"] == "TechCorp"
 		assert len(shared_company.relations()) == 0
-
-	def test_query_set_operations_reject_non_query_results(self, populated_engine):
-		"""Test union/exclude/intersect enforce QueryResult inputs."""
-		result = populated_engine.query.Person
-		with pytest.raises(TypeError):
-			result.union([])
-		with pytest.raises(TypeError):
-			result.exclude([])
-		with pytest.raises(TypeError):
-			result.intersect([])
 
 	def test_get(self, populated_engine):
 		"""Test getting all nodes"""

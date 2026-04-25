@@ -1,7 +1,7 @@
 """
 Unit tests for Node and Relation instances
 """
-from src.graphite import Node, Relation, NodeType, RelationType, Field, DataType
+from src.graphite import DataType, Field, Node, NodeType, Relation, RelationType
 
 class TestNode:
 	"""Test Node class"""

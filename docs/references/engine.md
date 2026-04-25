@@ -141,17 +141,17 @@ Removes a relation
 
 `NotFoundError` for invalid relations
 
-## `load_dsl(dsl: str) -> None`
-
-Loads a [Graphite DSL](/dsl) into database
-
-> **Note:** This function is deprecated and will be removed in next versions, please use `parse()` instead.
-
 ## `parse(dsl: str) -> None`
 
 Parses a [Graphite DSL](/dsl) string and load it into database
 
 Accepts node type definition, relation type definition, node instance, and relation in one string separated by empty line
+
+## `load_dsl(dsl: str) -> None`
+
+Loads a [Graphite DSL](/dsl) into database
+
+> **Note:** This function is deprecated and will be removed in next versions, please use `parse()` instead.
 
 ## `save(filename: str) -> None`
 

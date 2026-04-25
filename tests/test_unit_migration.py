@@ -4,9 +4,10 @@ Unit tests for Migration utility
 import os
 import pickle
 import tempfile
+
 import pytest
 
-from src.graphite import Migration, GraphiteEngine
+from src.graphite import GraphiteEngine, Migration
 
 @pytest.mark.filterwarnings("ignore:'convert_pickle_to_json':PendingDeprecationWarning")
 @pytest.mark.filterwarnings("ignore:Loading from pickle file")
@@ -39,9 +40,8 @@ class TestMigration:
 		# Convert to JSON
 		json_file = temp_json_file
 
-		success = Migration.convert_pickle_to_json(pickle_file, json_file, delete_original=False)
+		Migration.convert_pickle_to_json(pickle_file, json_file, delete_original=False)
 
-		assert success is True
 		assert os.path.exists(json_file)
 		assert os.path.exists(pickle_file)  # Not deleted
 
@@ -79,11 +79,10 @@ class TestMigration:
 
 		json_file = temp_json_file
 
-		success = Migration.convert_pickle_to_json(
+		Migration.convert_pickle_to_json(
 			pickle_file, json_file, delete_original=True
 		)
 
-		assert success is True
 		assert os.path.exists(json_file)
 		assert not os.path.exists(pickle_file)  # Should be deleted
 
@@ -92,9 +91,8 @@ class TestMigration:
 		pickle_file = "non_existent_file.db"
 		json_file = temp_json_file
 
-		success = Migration.convert_pickle_to_json(pickle_file, json_file)
-
-		assert success is False
+		with pytest.raises(FileNotFoundError):
+			Migration.convert_pickle_to_json(pickle_file, json_file)
 
 	def test_convert_pickle_to_json_invalid_pickle(self, temp_json_file):
 		"""Test conversion with invalid pickle file"""
@@ -106,9 +104,8 @@ class TestMigration:
 
 		json_file = temp_json_file
 
-		success = Migration.convert_pickle_to_json(pickle_file, json_file)
-
-		assert success is False
+		with pytest.raises(pickle.UnpicklingError):
+			Migration.convert_pickle_to_json(pickle_file, json_file)
 
 	@pytest.mark.filterwarnings("ignore::PendingDeprecationWarning")
 	def test_detect_pickle_and_convert(self, populated_engine):

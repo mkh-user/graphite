@@ -2,22 +2,27 @@
 Main graph database engine of Graphite
 """
 import json
-import warnings
 import os
+import warnings
 from collections import defaultdict
-from typing import Dict, List, Optional, Any, Union
+from typing import Any, Dict, List, Union
+
+from typing_extensions import deprecated
 
 from .exceptions import (
-	FileSizeError, InvalidJSONError, InvalidPropertiesError, NotFoundError,
-	SafeLoadExtensionError, TooNestedJSONError, ValidationError,
+	FileSizeError, InvalidJSONError, InvalidPropertiesError, InvalidRelationError,
+	NotFoundError, SafeLoadExtensionError, TooNestedJSONError, ValidationError,
 )
-from .types import Field, NodeType, RelationType
 from .instances import Node, Relation
 from .parser import GraphiteParser
 from .query import QueryBuilder
 from .serialization import GraphiteJSONEncoder, graphite_object_hook
+from .types import Field, NodeType, RelationType
 
-class GraphiteEngine:  # pylint: disable=too-many-instance-attributes
+SAVE_FILE_VERSION = "1.0"
+
+# pylint: disable=too-many-instance-attributes
+class GraphiteEngine:
 	"""Main graph database engine"""
 
 	def __init__(self):
@@ -34,8 +39,17 @@ class GraphiteEngine:  # pylint: disable=too-many-instance-attributes
 
 	# =============== SCHEMA DEFINITION ===============
 
-	def define_node(self, definition: str):
-		"""Define a node type from DSL"""
+	def define_node(self, definition: str) -> None:
+		"""
+		Define a node type from DSL
+
+		:param definition: Node definition string in Graphite DSL
+
+		:return: None
+
+		:except GraphiteError: if node definition is not valid
+		:except NotFoundError: if parent node definition (from ...) is not found
+		"""
 		node_name, fields, parent_name = self.parser.parse_node_definition(definition)
 
 		parent = None
@@ -50,8 +64,18 @@ class GraphiteEngine:  # pylint: disable=too-many-instance-attributes
 		node_type = NodeType(node_name, fields, parent)
 		self.node_types[node_name] = node_type
 
-	def define_relation(self, definition: str):
-		"""Define a relation type from DSL"""
+	def define_relation(self, definition: str) -> None:
+		"""
+		Define a relation type from DSL
+
+		:param definition: Relation definition string in Graphite DSL
+
+		:return: None
+
+		:except ParseError: if relation definition is not valid
+		:except RelationTypeDefineError: if relation type have both 'reverse ...' and 'both' flags
+		:except NotFoundError: if source or target node types are not found
+		"""
 		(rel_name, from_type, to_type, fields,
 		reverse_name, is_bidirectional) = self.parser.parse_relation_definition(definition)
 
@@ -84,7 +108,19 @@ class GraphiteEngine:  # pylint: disable=too-many-instance-attributes
 	# =============== DATA MANIPULATION ===============
 
 	def create_node(self, node_type: str, node_id: str, *values) -> Node:
-		"""Create a node instance"""
+		"""
+		Create a node instance
+
+		:param node_type: Node type
+		:param node_id: Node ID
+		:param values: Values for node fields
+
+		:return: Node instance
+
+		:except NotFoundError: if `node_type` not defined
+		:except InvalidPropertiesError: if `values` count is not same as node type field count
+		:except FieldError: if `values` fail in parse, converting, or validation
+		"""
 		if node_type not in self.node_types:
 			raise NotFoundError(
 				"Node type",
@@ -111,7 +147,20 @@ class GraphiteEngine:  # pylint: disable=too-many-instance-attributes
 		return new_node
 
 	def create_relation(self, from_id: str, to_id: str, rel_type: str, *values) -> Relation:
-		"""Create a relation instance"""
+		"""
+		Create a relation instance
+
+		:param from_id: Source ID
+		:param to_id: Target ID
+		:param rel_type: Relation type
+		:param values: Values for relation fields
+
+		:return: Relation instance
+
+		:except NotFoundError: if `rel_type`, `from_id`, or `to_id` not defined
+		:except InvalidRelationError: for invalid node types based on relation type
+		:except InvalidPropertiesError: if `values` count is not same as relation type field count
+		"""
 		if rel_type not in self.relation_types:
 			raise NotFoundError(
 				"Relation type",
@@ -132,6 +181,16 @@ class GraphiteEngine:  # pylint: disable=too-many-instance-attributes
 				to_id
 			)
 
+		if not (
+			self.is_node_from_type(from_id, rel_type_obj.from_type) and
+			self.is_node_from_type(to_id, rel_type_obj.to_type)
+		):
+			raise InvalidRelationError(
+				rel_type_obj,
+				from_id,
+				to_id,
+			)
+
 		if len(values) != len(rel_type_obj.fields):
 			raise InvalidPropertiesError(
 				rel_type_obj.fields,
@@ -140,8 +199,8 @@ class GraphiteEngine:  # pylint: disable=too-many-instance-attributes
 
 		# Create values dictionary
 		rel_values = {}
-		for i, rel_field in enumerate(rel_type_obj.fields):
-			rel_values[rel_field.name] = self.parser.parse_value(values[i])
+		for current_field, value in zip(rel_type_obj.fields, values):
+			rel_values[current_field.name] = self.parser.parse_field_value(value, current_field)
 
 		new_relation = Relation(rel_type, from_id, to_id, rel_values, rel_type_obj)
 		self.relations.append(new_relation)
@@ -159,14 +218,75 @@ class GraphiteEngine:  # pylint: disable=too-many-instance-attributes
 
 		return new_relation
 
+	def is_node_from_type(self, node_id: str, node_type: str) -> bool:
+		"""
+		Returns True if given node is from given type
+
+		:param node_id: Node ID
+		:param node_type: Node type string
+
+		:return: True if given node is from given type otherwise False
+
+		:except NotFoundError: if given `node_id` not defined
+		:except NotFoundError: if `node_type` not defined
+		"""
+		if node_id not in self.nodes:
+			raise NotFoundError(
+				"Node",
+				node_id
+			)
+		if node_type not in self.node_types:
+			raise NotFoundError(
+				"Node type",
+				node_type
+			)
+		node_obj = self.nodes[node_id]
+		# Fast check for direct inheritance
+		if node_obj.type_name == node_type:
+			return True
+		type_obj = node_obj.type_ref if node_obj.type_ref else self.node_types[node_obj.type_name]
+		while type_obj.parent:
+			if type_obj.parent.name == node_type:
+				return True
+			type_obj = type_obj.parent
+		return False
+
 	# =============== QUERY METHODS ===============
 
-	def get_node(self, node_id: str) -> Optional[Node]:
-		"""Get node by ID"""
+	def get_node(self, node_id: str) -> Node:
+		"""
+		Get node by ID
+
+		:param node_id: Node ID
+
+		:return: Node object
+
+		:except NotFoundError: if `node_id` not defined
+		"""
+		if node_id not in self.nodes:
+			raise NotFoundError(
+				"Node",
+				node_id,
+			)
 		return self.nodes.get(node_id)
 
 	def get_nodes_of_type(self, node_type: str, with_subtypes: bool = True) -> List[Node]:
-		"""Get all nodes of a specific type"""
+		"""
+		Get all nodes of a specific type
+
+		:param node_type: Node type string
+		:param with_subtypes: If `with_subtypes` is True, adds all subtypes of node type recursively
+
+		:return: List of Node objects
+
+		:except NotFoundError: if `node_type` not defined
+		"""
+		if node_type not in self.node_types:
+			raise NotFoundError(
+				"Node type",
+				node_type
+			)
+
 		nodes: List[Node] = self.node_by_type.get(node_type, [])
 		if with_subtypes:
 			for ntype in self.node_types.values():
@@ -177,21 +297,69 @@ class GraphiteEngine:  # pylint: disable=too-many-instance-attributes
 		return nodes
 
 	def get_relations_from(self, node_id: str, rel_type: str = None) -> List[Relation]:
-		"""Get relations from a node"""
+		"""
+		Get relations from a node
+
+		:param node_id: Node ID
+		:param rel_type: Relation type to filter on, or ``None`` to keep all types
+
+		:return: List of Relations
+
+		:except NotFoundError: if `rel_type` or `node_id` not defined
+		"""
+		if rel_type and rel_type not in self.relation_types:
+			raise NotFoundError(
+				"Relation type",
+				rel_type
+			)
+		if node_id not in self.nodes:
+			raise NotFoundError(
+				"Node",
+				node_id
+			)
+
 		all_rels = self.relations_by_from.get(node_id, [])
 		if rel_type:
 			return [r for r in all_rels if r.type_name == rel_type]
 		return all_rels
 
 	def get_relations_to(self, node_id: str, rel_type: str = None) -> List[Relation]:
-		"""Get relations to a node"""
+		"""
+		Get relations to a node
+
+		:param node_id: Node ID
+		:param rel_type: Relation type to filter on, or ``None`` to keep all types
+
+		:return: List of Relations
+
+		:except NotFoundError: if `rel_type` or `node_id` not defined
+		"""
+		if rel_type and rel_type not in self.relation_types:
+			raise NotFoundError(
+				"Relation type",
+				rel_type
+			)
+		if node_id not in self.nodes:
+			raise NotFoundError(
+				"Node",
+				node_id
+			)
+
 		all_rels = self.relations_by_to.get(node_id, [])
 		if rel_type:
 			return [r for r in all_rels if r.type_name == rel_type]
 		return all_rels
 
 	def undefine_node(self, node_type: str) -> None:
-		"""Undefine a node type"""
+		"""
+		Undefine a node type
+
+		:param node_type: Node type string
+
+		:return: None
+
+		:except NotFoundError: if `node_type` not defined
+		"""
 		if node_type not in self.node_types:
 			raise NotFoundError(
 				"Node type",
@@ -219,7 +387,16 @@ class GraphiteEngine:  # pylint: disable=too-many-instance-attributes
 		self.node_types.pop(node_type, None)
 
 	def undefine_relation(self, relation_type: str, _is_reverse: bool = False) -> None:
-		"""Undefine a relation type"""
+		"""
+		Undefine a relation type
+
+		:param relation_type: Relation type string
+		:param _is_reverse: For internal use to remove reverse direction relation type
+
+		:return: None
+
+		:except NotFoundError: if `relation_type` not defined
+		"""
 		if relation_type not in self.relation_types:
 			raise NotFoundError(
 				"Relation type",
@@ -233,7 +410,15 @@ class GraphiteEngine:  # pylint: disable=too-many-instance-attributes
 		self.relations_by_type.pop(relation_type, None)
 
 	def remove_node(self, node: Union[Node, str]) -> None:
-		"""Remove a node"""
+		"""
+		Remove a node and all its relations
+
+		:param node: Node ID string or node object
+
+		:return: None
+
+		:except NotFoundError: if `node` not defined
+		"""
 		if isinstance(node, str):
 			if node not in self.nodes:
 				raise NotFoundError(
@@ -257,7 +442,15 @@ class GraphiteEngine:  # pylint: disable=too-many-instance-attributes
 		self.node_by_type[node_type].remove(removed)
 
 	def remove_relation(self, relation: Relation) -> None:
-		"""Remove a relation"""
+		"""
+		Remove a relation
+
+		:param relation: Relation object
+
+		:return: None
+
+		:except NotFoundError: if `relation` not defined
+		"""
 		if relation not in self.relations:
 			raise NotFoundError(
 				"Relation",
@@ -268,13 +461,23 @@ class GraphiteEngine:  # pylint: disable=too-many-instance-attributes
 		self.relations_by_from[relation.from_node].remove(relation)
 		self.relations_by_to[relation.to_node].remove(relation)
 
-	# =============== BULK LOADING ===============
+	# ============= BULK LOADING / DSL =============
 
-	def load_dsl(self, dsl: str):
-		"""Load Graphite DSL"""
-		lines = dsl.strip().split('\n')
+	def parse(self, data: str) -> None:
+		"""
+		Parse and load data from Graphite DSL to engine
+
+		:param data: data as Graphite DSL string
+
+		:return: None
+
+		:except ParseError: if parsing fails
+		:except NotFoundError: using any undefined object (node type, relation type, node, relation)
+		:except ValueError: if a used data type not fount
+		"""
+		lines = data.strip().split('\n')
+
 		i = 0
-
 		while i < len(lines):
 			line = lines[i].strip()
 			if not line or line.startswith('#'):
@@ -290,6 +493,9 @@ class GraphiteEngine:  # pylint: disable=too-many-instance-attributes
 						and lines[i].strip()
 						and not lines[i].strip().startswith(('node', 'relation'))
 				):
+					if lines[i].strip().startswith('#'):
+						i += 1
+						continue
 					node_def.append(lines[i])
 					i += 1
 				self.define_node('\n'.join(node_def))
@@ -303,54 +509,76 @@ class GraphiteEngine:  # pylint: disable=too-many-instance-attributes
 						and lines[i].strip()
 						and not lines[i].strip().startswith(('node', 'relation'))
 				):
+					if lines[i].strip().startswith('#'):
+						i += 1
+						continue
 					rel_def.append(lines[i])
 					i += 1
 				self.define_relation('\n'.join(rel_def))
-
-			elif '[' not in line:
-				# Node instance
-				node_type, node_id, values = self.parser.parse_node_instance(line)
-				self.create_node(node_type, node_id, *values)
-				i += 1
 
 			elif '-[' in line and (']->' in line or ']-' in line):
 				# Relation instance
 				from_id, to_id, rel_type, values, _ = self.parser.parse_relation_instance(line)
 				self.create_relation(from_id, to_id, rel_type, *values)
 				i += 1
+
 			else:
+				# Node instance
+				node_type, node_id, values = self.parser.parse_node_instance(line)
+				self.create_node(node_type, node_id, *values)
 				i += 1
+
+	@deprecated("Use parse() instead")
+	def load_dsl(self, dsl: str) -> None:
+		"""
+		Load Graphite DSL to engine
+
+		:param dsl: DSL string
+
+		:return: None
+
+		:except ParseError: if parsing fails
+		:except NotFoundError: using any undefined object (node type, relation type, node, relation)
+		:except ValueError: if a used data type not fount
+		"""
+		self.parse(dsl)
 
 	# =============== PERSISTENCE ===============
 
-	@staticmethod
-	def _graphite_object_hook(dct: Dict[str, Any]) -> Any:
-		"""Object hook for decoding Graphite objects from JSON."""
-		return graphite_object_hook(dct)
+	def save(self, file_path: str) -> None:
+		"""
+		Save database to a single file using JSON
 
-	def save(self, filename: str):
-		"""Save database to file using JSON"""
+		:param file_path: File path
+		"""
 		data = self._build_save_payload()
-		with open(filename, 'w', encoding='utf-8') as f:
+		with open(file_path, 'w', encoding='utf-8') as f:
 			# noinspection PyTypeChecker
 			json.dump(data, f, cls=GraphiteJSONEncoder, indent=2, ensure_ascii=False)
 
 	def load_safe(
-		self, filename: str, max_size_mb: Union[int, float] = 100, validate_schema: bool = True
+		self, file_path: str, max_size_mb: Union[int, float] = 100, validate_schema: bool = True,
+		accept_any_extension: bool = False
 	) -> None:
 		"""
 		Safely load database with security checks
 
-		Args:
-			filename: File to load
-			max_size_mb: Maximum allowed file size in MB
-			validate_schema: Whether to validate schema consistency
+		:param file_path: File to load
+		:param max_size_mb: Maximum allowed file size in MB
+		:param validate_schema: Whether to validate schema consistency
+		:param accept_any_extension: Whether to accept any extension, by default just `.json` is valid
 
-		Returns:
-			True if loaded successfully, False otherwise
+		:return: None
+
+		:except FileSizeError: for files bigger than `max_size_mb`
+		:except SafeLoadExtensionError: for files without `.json` extension when extension
+		validation enabled
+		:except InvalidJSONError: for error at decoding process
+		:except TooNestedJSONError: for invalid recursion error
+		:except ValidationError: for invalid schema when schema validation enabled
 		"""
 		# Check file size
-		file_size = os.path.getsize(filename)
+		file_size = os.path.getsize(file_path)
 		if file_size > max_size_mb * 1024 * 1024:
 			raise FileSizeError(
 				file_size / 1024 / 1024,
@@ -358,16 +586,16 @@ class GraphiteEngine:  # pylint: disable=too-many-instance-attributes
 			)
 
 		# Check file extension
-		if not filename.lower().endswith('.json'):
+		if not accept_any_extension and not file_path.lower().endswith('.json'):
 			raise SafeLoadExtensionError()
 
 		try:
-			with open(filename, 'r', encoding='utf-8') as f:
-				data = json.load(f, object_hook=self._graphite_object_hook)
+			with open(file_path, 'r', encoding='utf-8') as f:
+				data = json.load(f, object_hook=graphite_object_hook)
 		except json.JSONDecodeError as e:
 			raise InvalidJSONError() from e
-		except RecursionError as exc:
-			raise TooNestedJSONError() from exc
+		except RecursionError as e:
+			raise TooNestedJSONError() from e
 
 		# Validate structure
 		if validate_schema:
@@ -376,10 +604,18 @@ class GraphiteEngine:  # pylint: disable=too-many-instance-attributes
 		# Load normally
 		self._load_from_dict(data)
 
-	@staticmethod
 	# pylint: disable=too-many-branches
-	def _validate_loaded_data(data: Dict[str, Any]):
-		"""Validate loaded data for consistency"""
+	@staticmethod
+	def _validate_loaded_data(data: Dict[str, Any]) -> None:
+		"""
+		Validate loaded data for consistency
+
+		:param data: Dictionary of loaded data
+
+		:return: None
+
+		:except ValidationError: for any fail at validation
+		"""
 		if not isinstance(data, dict):
 			raise ValidationError(
 				"Loaded data must be a dictionary",
@@ -387,7 +623,7 @@ class GraphiteEngine:  # pylint: disable=too-many-instance-attributes
 				str(type(data))
 			)
 
-		required_keys = ['version', 'node_types', 'relation_types', 'nodes']
+		required_keys = ('version', 'node_types', 'relation_types', 'nodes')
 		for key in required_keys:
 			if key not in data:
 				raise ValidationError(
@@ -395,6 +631,13 @@ class GraphiteEngine:  # pylint: disable=too-many-instance-attributes
 					key,
 					"'Missing'"
 				)
+
+		if data.get("version") != SAVE_FILE_VERSION:
+			raise ValidationError(
+				f"Save file version must be {SAVE_FILE_VERSION} not {data.get('version')}",
+				"version",
+				data.get("version")
+			)
 
 		if not isinstance(data.get('node_types'), list):
 			raise ValidationError(
@@ -422,10 +665,8 @@ class GraphiteEngine:  # pylint: disable=too-many-instance-attributes
 			)
 
 		# Check for unexpected keys
-		allowed_keys = {
-			'version', 'node_types', 'relation_types', 'nodes', 'relations',
-			'node_by_type', 'relations_by_type', 'relations_by_from', 'relations_by_to'
-		}
+		allowed_keys = ('version', 'node_types', 'relation_types', 'nodes', 'relations', 'node_by_type',
+				'relations_by_type', 'relations_by_from', 'relations_by_to')
 		for key in data.keys():
 			if key not in allowed_keys:
 				warnings.warn(f"Unexpected key in data: {key}", UserWarning)
@@ -446,9 +687,15 @@ class GraphiteEngine:  # pylint: disable=too-many-instance-attributes
 					type_name,
 				)
 
-	# pylint: disable=too-many-branches, too-many-locals
-	def _load_from_dict(self, data: Dict[str, Any]):
-		"""Internal method to load from dictionary (used by both load and load_safe)"""
+	# pylint: disable=too-many-locals
+	def _load_from_dict(self, data: Dict[str, Any]) -> None:
+		"""
+		Internal method to load from dictionary (used by both load and load_safe)
+
+		:param data: Dictionary of loaded data
+
+		:return: None
+		"""
 		# Clear existing data
 		self.clear()
 
@@ -543,9 +790,13 @@ class GraphiteEngine:  # pylint: disable=too-many-instance-attributes
 		self._rebuild_all_indexes()
 
 	def _build_save_payload(self) -> Dict[str, Any]:
-		"""Build a JSON-serializable payload for persistence."""
+		"""
+		Build a JSON-serializable payload for persistence
+
+		:return: Engine snapshot as JSON dictionary
+		"""
 		return {
-			"version"          : "1.0",
+			"version"          : SAVE_FILE_VERSION,
 			"node_types"       : list(self.node_types.values()),
 			"relation_types"   : list(self.relation_types.values()),
 			"nodes"            : list(self.nodes.values()),
@@ -564,17 +815,33 @@ class GraphiteEngine:  # pylint: disable=too-many-instance-attributes
 			"relations_by_to"  : dict(self.relations_by_to.items()),
 		}
 
-	def _rebuild_all_indexes(self):
-		self._rebuild_node_by_type()
-		self._rebuild_relations_indexes()
+	def _rebuild_all_indexes(self) -> None:
+		"""
+		Rebuild nodes and relation indexes
+
+		:return: None
+		"""
+		self.node_by_type = defaultdict(list)
+		for node_instance in self.nodes.values():
+			self.node_by_type[node_instance.type_name].append(node_instance)
+
+		self.relations_by_type = defaultdict(list)
+		self.relations_by_from = defaultdict(list)
+		self.relations_by_to = defaultdict(list)
+
+		for rel in self.relations:
+			self.relations_by_type[rel.type_name].append(rel)
+			self.relations_by_from[rel.from_node].append(rel)
+			self.relations_by_to[rel.to_node].append(rel)
 
 	def load(self, filename: str, safe_mode: bool = True) -> None:
 		"""
 		Load database from file
 
-		Args:
-			filename: File to load
-			safe_mode: If True, use safe loading with validation (default: True)
+		:param filename: File to load (must be JSON)
+		:param safe_mode: If True, use safe loading with validation (default: True)
+
+		:return: None
 		"""
 		if safe_mode:
 			self.load_safe(filename)
@@ -588,43 +855,26 @@ class GraphiteEngine:  # pylint: disable=too-many-instance-attributes
 		)
 		self._load_unsafe(filename)
 
-	def _load_unsafe(self, filename: str):
-		"""Legacy unsafe loading (kept for compatibility)"""
+	def _load_unsafe(self, filename: str) -> None:
+		"""
+		Legacy unsafe loading (kept for compatibility)
+
+		:param filename: File to load
+
+		:return: None
+		"""
 		with open(filename, 'r', encoding='utf-8') as f:
-			data = json.load(f, object_hook=self._graphite_object_hook)
+			data = json.load(f, object_hook=graphite_object_hook)
 		self._load_from_dict(data)
-
-	def _rebuild_node_by_type(self):
-		"""Rebuild node_by_type index"""
-		self.node_by_type = defaultdict(list)
-		for node_instance in self.nodes.values():
-			self.node_by_type[node_instance.type_name].append(node_instance)
-
-	def _rebuild_relations_indexes(self):
-		"""Rebuild all relation indexes"""
-		self.relations_by_type = defaultdict(list)
-		self.relations_by_from = defaultdict(list)
-		self.relations_by_to = defaultdict(list)
-
-		for rel in self.relations:
-			self.relations_by_type[rel.type_name].append(rel)
-			self.relations_by_from[rel.from_node].append(rel)
-			self.relations_by_to[rel.to_node].append(rel)
-
-	def _rebuild_remaining_indexes(self):
-		"""Rebuild indexes that might not be in the saved data"""
-		# Ensure relations_by_from and relations_by_to are built
-		if not self.relations_by_from or not self.relations_by_to:
-			self.relations_by_from = defaultdict(list)
-			self.relations_by_to = defaultdict(list)
-			for rel in self.relations:
-				self.relations_by_from[rel.from_node].append(rel)
-				self.relations_by_to[rel.to_node].append(rel)
 
 	# =============== UTILITY METHODS ===============
 
-	def clear(self):
-		"""Clear all data"""
+	def clear(self) -> None:
+		"""
+		Clear all data
+
+		:return: None
+		"""
 		self.node_types.clear()
 		self.relation_types.clear()
 		self.nodes.clear()
@@ -635,16 +885,15 @@ class GraphiteEngine:  # pylint: disable=too-many-instance-attributes
 		self.relations_by_to.clear()
 
 	def stats(self) -> Dict[str, Any]:
-		"""Get database statistics"""
+		"""
+		Get database statistics
+
+		:return: Dictionary of statistics containing count of node types, relation types, node,
+		and relations
+		"""
 		return {
 			'node_types'    : len(self.node_types),
 			'relation_types': len(self.relation_types),
 			'nodes'         : len(self.nodes),
 			'relations'     : len(self.relations),
 		}
-
-	# =============== SYNTAX SUGAR ===============
-
-	def parse(self, data: str):
-		"""Parse data into nodes and relations (structure or data)"""
-		self.load_dsl(data)

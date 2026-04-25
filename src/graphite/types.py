@@ -2,9 +2,10 @@
 Data, relation, and node type classes for Graphite database
 """
 from __future__ import annotations
+
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import List, Optional, Any
+from typing import Any, List, Optional
 
 class DataType(Enum):
 	"""

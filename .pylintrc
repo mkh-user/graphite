@@ -3,3 +3,6 @@ indent-string=\t
 
 [tests.*]
 disable = import-error
+
+[examples.*]
+disable = import-error

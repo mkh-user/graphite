@@ -1,16 +1,14 @@
 """
 Configuration and fixtures for Graphite tests
 """
-import sys
 import os
+import sys
 import tempfile
+
 import pytest
 
-try:
-	sys.path.insert(0, os.path.abspath('..'))
-	from src.graphite import GraphiteEngine
-except Exception as e:
-	raise e
+sys.path.insert(0, os.path.abspath('..'))
+from src.graphite import GraphiteEngine # pylint: disable=wrong-import-position
 
 @pytest.fixture
 def clean_engine():

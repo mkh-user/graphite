@@ -2,17 +2,12 @@
 Unit tests for serialization
 """
 import json
-from datetime import date
 from collections import defaultdict
+from datetime import date
 from enum import Enum
+
 from src.graphite import (
-	GraphiteJSONEncoder,
-	DataType,
-	Field,
-	NodeType,
-	Node,
-	RelationType,
-	Relation
+	DataType, Field, GraphiteJSONEncoder, Node, NodeType, Relation, RelationType,
 )
 
 class TestGraphiteJSONEncoder:

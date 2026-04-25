@@ -3,10 +3,11 @@ Integration tests for persistence (save/load)
 """
 import os
 import warnings
+
 import pytest
 
 from src.graphite import GraphiteEngine
-from src.graphite.exceptions import FileSizeError, SafeLoadExtensionError, InvalidJSONError
+from src.graphite.exceptions import FileSizeError, InvalidJSONError, SafeLoadExtensionError
 
 # noinspection PyDeprecation
 class TestPersistenceIntegration:

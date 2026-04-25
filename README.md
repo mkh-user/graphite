@@ -189,7 +189,7 @@ def example_complete_dsl_loading():
     user_2 -[AUTHOR, 2021]-> book_2
     """
 
-    engine.load_dsl(complete_dsl)
+    engine.parse(complete_dsl)
 
     users = engine.query.User.get()
     print([u["name"] for u in users])

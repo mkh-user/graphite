@@ -2,6 +2,7 @@
 Unit tests for Graphite type classes
 """
 import pytest
+
 from src.graphite import DataType, Field, NodeType, RelationType
 
 class TestDataType:

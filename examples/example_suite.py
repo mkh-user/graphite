@@ -2,7 +2,7 @@
 Example usages of Graphite in separate functions. You can run a function to see its result.
 """
 # noinspection PyPackageRequirements
-import graphite # pylint: disable=import-error
+import graphite
 # import src.graphite as graphite # Just for test dev version
 
 # =============== EXAMPLE COMPLETE DSL LOADING ===============
@@ -80,7 +80,7 @@ def example_complete_dsl_loading() -> None:
     """
 
 	# Load all with one call
-	engine.load_dsl(complete_dsl)
+	engine.parse(complete_dsl)
 
 	print("=== Database Stats ===")
 	stats = engine.stats()

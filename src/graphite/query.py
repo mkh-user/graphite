@@ -4,17 +4,24 @@ Query engine and object for Graphite
 from collections import defaultdict
 from datetime import date, datetime
 from functools import reduce
-from typing import Any, Dict, TYPE_CHECKING, List, Callable, Optional, Union
+from typing import Any, Callable, Dict, List, Optional, TYPE_CHECKING, Union
 
+from .exceptions import ConditionError, DateParseError, NotFoundError
 from .instances import Node, Relation
 from .types import RelationType
-from .exceptions import ConditionError, DateParseError, NotFoundError
 
 if TYPE_CHECKING:
 	from .engine import GraphiteEngine
 
-class QueryResult: # pylint: disable=too-many-public-methods
-	"""Represents a query result that can be chained"""
+# pylint: disable=too-many-public-methods
+class QueryResult:
+	"""
+	Represents a query result that can be chained
+
+	:param graph_engine: Graphite engine instance
+	:param nodes: including nodes
+	:param edges: including edges
+	"""
 
 	def __init__(
 		self, graph_engine: 'GraphiteEngine', nodes: List[Node], edges: List[Relation] = None
@@ -25,13 +32,19 @@ class QueryResult: # pylint: disable=too-many-public-methods
 		self.current_relation: Optional[RelationType] = None
 		self.direction: str = 'outgoing'
 
-	def set(self, **values: Any):
+	def set(self, **values: Any) -> 'QueryResult':
 		"""
 		Change result nodes' values
 
 		**Note:** This query mutates nodes in-place and changes will be applied to engine directly.
 		**Note:** This query raises ``NotFoundError`` for nodes without compatible fields, use
 		``.with_fields()`` to ensure all fields are valid.
+
+		:param values: field=value pairs
+
+		:return: self
+
+		:except NotFoundError: if any field was invalid for any node
 		"""
 		for processing_node in self.nodes:
 			for field in values:
@@ -45,8 +58,16 @@ class QueryResult: # pylint: disable=too-many-public-methods
 				processing_node.set(field, value)
 		return self
 
-	def remove(self):
-		"""Remove current result nodes"""
+	def remove(self) -> 'QueryResult':
+		"""
+		Remove current result nodes
+
+		**Note:** This query mutates nodes in-place and changes will be applied to engine directly.
+
+		:return: A new query with remaining valid edges and no nodes
+
+		:raise NotFoundError: if any nodes not found in engine
+		"""
 		for processing_node in self.nodes:
 			self.engine.remove_node(processing_node)
 		for relation in self.edges.copy():
@@ -54,15 +75,31 @@ class QueryResult: # pylint: disable=too-many-public-methods
 				self.edges.remove(relation)
 		return QueryResult(self.engine, [], self.edges)
 
-	def remove_relations(self):
-		"""Remove current result relations"""
+	def remove_relations(self) -> 'QueryResult':
+		"""
+		Remove current result relations
+
+		**Note:** This query mutates nodes in-place and changes will be applied to engine directly.
+
+		:return: A new query with current nodes and no relations
+
+		:raise NotFoundError: if any relations not found in engine
+		"""
 		for relation in self.edges:
 			if relation in self.engine.relations:
 				self.engine.remove_relation(relation)
 		return QueryResult(self.engine, self.nodes, [])
 
-	def where(self, condition: Union[str, Callable]):
-		"""Filter nodes based on condition"""
+	def where(self, condition: Union[str, Callable]) -> 'QueryResult':
+		"""
+		Filter nodes based on condition
+
+		:param condition: condition string or lambda callable
+
+		:return: new query with nodes filtered based on condition
+
+		:except ConditionError: if fail on executing condition
+		"""
 		filtered_nodes = []
 
 		if callable(condition):
@@ -81,26 +118,48 @@ class QueryResult: # pylint: disable=too-many-public-methods
 
 		return QueryResult(self.engine, filtered_nodes, self.edges)
 
-	def with_type(self, node_type: str):
-		"""Filter nodes based on type"""
-		return QueryResult(
-			self.engine,
-			list(filter(lambda node: node.type_name == node_type, self.nodes)),
-			self.edges
-		)
+	def with_type(self, node_type: str, include_parent_types: bool = True) -> 'QueryResult':
+		"""
+		Filter nodes based on type
 
-	def with_fields(self, *fields: str):
-		"""Filter nodes with given fields"""
+		:param node_type: node type to filter
+		:param include_parent_types: whether to include parent types or not
+
+		:return: a new query with nodes filtered based on type
+		"""
+		if include_parent_types:
+			n = [node for node in self.nodes if self.engine.is_node_from_type(node.id, node_type)]
+		else:
+			n = [node for node in self.nodes if node.type_name == node_type]
+		return QueryResult(self.engine, n, self.edges)
+
+	def with_fields(self, *fields: str) -> 'QueryResult':
+		"""
+		Filter nodes with given fields
+
+		:param fields: fields to filter
+
+		:return: a new query with nodes filtered based on fields
+		"""
 		return QueryResult(
 			self.engine,
-			list(filter(lambda node: all(field in node.values for field in fields), self.nodes)),
+			[node for node in self.nodes if all(field in node.values for field in fields)],
 			self.edges
 		)
 
 	# pylint: disable=too-many-branches
 	@staticmethod
 	def _evaluate_condition(target_node: Node, condition: str) -> bool:
-		"""Evaluate a condition string on a node"""
+		"""
+		Evaluate a condition string on a node
+
+		:param target_node: target node
+		:param condition: condition string
+
+		:return: bool, evaluated condition
+
+		:except ConditionError: if fail on executing condition
+		"""
 		# Simple condition parser
 		ops = ['>=', '<=', '!=', '==', '>', '<', '=']
 
@@ -152,15 +211,24 @@ class QueryResult: # pylint: disable=too-many-public-methods
 					if op == '<=':
 						result = node_value <= right_value
 				except TypeError as e:
-					raise e
+					raise ConditionError(condition) from e
 				if result is None:
 					raise ConditionError(condition)
 				return result
 
 		raise ConditionError(condition)
 
-	def traverse(self, relation_type: Optional[str] = None, direction: str = 'outgoing'):
-		"""Traverse relations from current nodes"""
+	def traverse(
+		self, relation_type: Optional[str] = None, direction: str = 'outgoing'
+	) -> 'QueryResult':
+		"""
+		Traverse relations from current nodes
+
+		:param relation_type: optional relation type for valid traverses
+		:param direction: traverse direction
+
+		:return: a new query with result nodes and traversed relations
+		"""
 		result_nodes = []
 		result_edges = []
 
@@ -194,24 +262,55 @@ class QueryResult: # pylint: disable=too-many-public-methods
 		result_nodes = list(dict((n.id, n) for n in result_nodes).values())
 		return QueryResult(self.engine, result_nodes, result_edges)
 
-	def outgoing(self, relation_type: Optional[str] = None):
-		"""Traverse outgoing relations"""
+	def outgoing(self, relation_type: Optional[str] = None) -> 'QueryResult':
+		"""
+		Traverse outgoing relations
+
+		:param relation_type: optional relation type for valid traverses
+
+		:return: a new query with result nodes and traversed relations
+		"""
 		return self.traverse(relation_type, 'outgoing')
 
-	def incoming(self, relation_type: Optional[str] = None):
-		"""Traverse incoming relations"""
+	def incoming(self, relation_type: Optional[str] = None) -> 'QueryResult':
+		"""
+		Traverse incoming relations
+
+		:param relation_type: optional relation type for valid traverses
+
+		:return: a new query with result nodes and traversed relations
+		"""
 		return self.traverse(relation_type, 'incoming')
 
-	def both(self, relation_type: Optional[str] = None):
-		"""Traverse both directions"""
+	def both(self, relation_type: Optional[str] = None) -> 'QueryResult':
+		"""
+		Traverse both directions
+
+		:param relation_type: optional relation type for valid traverses
+
+		:return: a new query with result nodes and traversed relations
+		"""
 		return self.traverse(relation_type, 'both')
 
-	def limit(self, n: int):
-		"""Limit number of results"""
+	def limit(self, n: int) -> 'QueryResult':
+		"""
+		Limit number of results (just nodes)
+
+		:param n: number of results to return
+
+		:return: a new query with all relations and limited nodes
+		"""
 		return QueryResult(self.engine, self.nodes[:n], self.edges)
 
-	def paginate(self, page: int, per_page: int):
-		"""Limit number of results to specified page"""
+	def paginate(self, page: int, per_page: int) -> 'QueryResult':
+		"""
+		Limit number of results to specified page
+
+		:param page: page number (from 0)
+		:param per_page: number of results in each page
+
+		:return: a new query with all relations and paged nodes
+		"""
 		if per_page <= 0:
 			return self.limit(0)
 		if page < 1:
@@ -224,38 +323,54 @@ class QueryResult: # pylint: disable=too-many-public-methods
 			self.edges,
 		)
 
-	def union(self, query):
+	def union(self, query: 'QueryResult', auto_distinct: bool = False) -> 'QueryResult':
 		"""
-		Merge query results
+		Merge query results (nodes and relations)
 
-		**Note:** This query will produce duplicates if the same node exists in both results, use
-		``.distinct()`` to remove duplicates.
+		**Note:** When ``auto_distinct`` is False, This query will produce duplicates if the same
+		node exists in both results, you can use manual ``.distinct()`` to remove duplicates.
+
+		:param query: query to merge
+		:param auto_distinct: whether to automatically distinct
+
+		:return: a new query with merged nodes and relation
 		"""
-		if not isinstance(query, QueryResult):
-			raise TypeError('Query must be an instance of QueryResult')
-		return QueryResult(self.engine, self.nodes + query.nodes, self.edges + query.edges)
+		result = QueryResult(self.engine, self.nodes + query.nodes, self.edges + query.edges)
+		return result.distinct() if auto_distinct else result
 
-	def exclude(self, query):
-		"""Removes result of given query from current nodes and relations"""
-		if not isinstance(query, QueryResult):
-			raise TypeError('Query must be an instance of QueryResult')
+	def exclude(self, query: 'QueryResult') -> 'QueryResult':
+		"""
+		Removes result of given query from current nodes and relations
+
+		:param query: query to exclude
+
+		:return: a new query with excluded nodes and relations
+		"""
 		exclude_ids = {n.id for n in query.nodes}
 		new_nodes = [n for n in self.nodes if n.id not in exclude_ids]
 		new_edges = [e for e in self.edges if e not in query.edges]
 		return QueryResult(self.engine, new_nodes, new_edges)
 
-	def intersect(self, query):
-		"""Just keeps shared nodes and relations between current and given queries"""
-		if not isinstance(query, QueryResult):
-			raise TypeError('Query must be an instance of QueryResult')
+	def intersect(self, query: 'QueryResult') -> 'QueryResult':
+		"""
+		Just keeps shared nodes and relations between current and given queries
+
+		:param query: query to intersect
+
+		:return: a new query with intersected nodes and relations
+		"""
 		intersect_ids = {n.id for n in query.nodes}
 		new_nodes = [n for n in self.nodes if n.id in intersect_ids]
 		intersect_edges = query.edges
 		new_edges = [e for e in self.edges if e in intersect_edges]
 		return QueryResult(self.engine, new_nodes, new_edges)
 
-	def distinct(self):
-		"""Get distinct nodes"""
+	def distinct(self) -> 'QueryResult':
+		"""
+		Get distinct nodes (remove duplicates)
+
+		:return: a new query with distinct nodes and original relations
+		"""
 		seen = set()
 		distinct_nodes = []
 		for processing_node in self.nodes:
@@ -264,10 +379,17 @@ class QueryResult: # pylint: disable=too-many-public-methods
 				distinct_nodes.append(processing_node)
 		return QueryResult(self.engine, distinct_nodes, self.edges)
 
-	def order_by(self, by_field: str, descending: bool = False):
-		"""Order nodes by field"""
+	def order_by(self, by_field: str, descending: bool = False) -> 'QueryResult':
+		"""
+		Order nodes by field
 
-		def get_key(from_node):
+		:param by_field: field name
+		:param descending: whether to sort by ascending or descending
+
+		:return: a new query with sorted nodes and all relations
+		"""
+
+		def get_key(from_node: Node) -> tuple[bool, Any]:
 			val = from_node.get(by_field)
 			return val is None, val
 
@@ -279,6 +401,10 @@ class QueryResult: # pylint: disable=too-many-public-methods
 		Sum of a field values in nodes
 
 		**Note:** This query skips non-numeric values.
+
+		:param field: field name
+
+		:return: sum of field
 		"""
 		return reduce(
 			lambda x, y: x + (y.get(field) if isinstance(y.get(field), (float, int)) else 0),
@@ -291,6 +417,10 @@ class QueryResult: # pylint: disable=too-many-public-methods
 		Average value of a field in result
 
 		**Note:** This query skips non-numeric values.
+
+		:param field: field name
+
+		:return: average of field
 		"""
 		count = len([n for n in self.nodes if isinstance(n.get(field), (float, int))])
 		if count == 0:
@@ -298,7 +428,13 @@ class QueryResult: # pylint: disable=too-many-public-methods
 		return self.sum(field) / count
 
 	def min(self, field: str) -> float:
-		"""Node with minimum value of a field in result"""
+		"""
+		Minimum value of a field in result nodes
+
+		:param field: field name
+
+		:return: minimum value
+		"""
 		nodes = [n for n in self.nodes if isinstance(n.get(field), (float, int))]
 		if not nodes:
 			return 0.0
@@ -308,7 +444,13 @@ class QueryResult: # pylint: disable=too-many-public-methods
 		).get(field)
 
 	def max(self, field: str) -> float:
-		"""Node with maximum value of a field in result"""
+		"""
+		Maximum value of a field in result nodes
+
+		:param field: field name
+
+		:return: maximum value
+		"""
 		nodes = [n for n in self.nodes if isinstance(n.get(field), (float, int))]
 		if not nodes:
 			return 0.0
@@ -318,15 +460,29 @@ class QueryResult: # pylint: disable=too-many-public-methods
 		).get(field)
 
 	def count(self) -> int:
-		"""Count nodes"""
+		"""
+		Count nodes
+
+		:return: number of nodes
+		"""
 		return len(self.nodes)
 
 	def get(self) -> List[Node]:
-		"""Get all nodes"""
+		"""
+		Get all nodes
+
+		:return: list of nodes
+		"""
 		return self.nodes
 
 	def group_by(self, field: str) -> Dict[Any, List[Node]]:
-		"""Group nodes by field"""
+		"""
+		Group nodes by field
+
+		:param field: field name
+
+		:return: dict of nodes grouped by field value
+		"""
 		groups = defaultdict(list)
 		for processing_node in self.nodes:
 			value = processing_node.get(field)
@@ -334,25 +490,37 @@ class QueryResult: # pylint: disable=too-many-public-methods
 		return dict(groups)
 
 	def relations(self) -> List[Relation]:
-		"""Get all relations"""
+		"""
+		Get all relations
+
+		:return: list of relations
+		"""
 		return list(self.edges)
 
 	def first(self) -> Optional[Node]:
-		"""Get first node"""
+		"""
+		Get first node
+
+		:return: first node or None
+		"""
 		return self.nodes[0] if self.nodes else None
 
 	def ids(self) -> List[str]:
-		"""Get node IDs"""
+		"""
+		Get node IDs
+
+		:return: list of node IDs
+		"""
 		return [n.id for n in self.nodes]
 
-class QueryBuilder:  # pylint: disable=too-few-public-methods
+class QueryBuilder:
 	"""Builder for creating queries"""
 
 	def __init__(self, graphite_engine: 'GraphiteEngine'):
 		self.engine = graphite_engine
 
 	def __getattr__(self, name: str) -> QueryResult:
-		"""Allow starting query from node type: engine.User"""
+		"""Allow starting query from node type: engine.query.User"""
 		if name in self.engine.node_types:
 			nodes = self.engine.get_nodes_of_type(name)
 			return QueryResult(self.engine, nodes)
@@ -363,4 +531,4 @@ class QueryBuilder:  # pylint: disable=too-few-public-methods
 
 	def all(self) -> QueryResult:
 		"""Allow starting query from all nodes"""
-		return QueryResult(self.engine, list(self.engine.nodes.values()))
+		return QueryResult(self.engine, list(self.engine.nodes.values()), list(self.engine.relations))

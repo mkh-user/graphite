@@ -145,7 +145,7 @@ car_2 -[OWNED_BY, 2018-12-01, 2018-11-15]-> user_4
 """
 
 # Load all with one call
-engine.load_dsl(complete_dsl)
+engine.parse(complete_dsl)
 
 print("=== Database Stats ===")
 stats = engine.stats()

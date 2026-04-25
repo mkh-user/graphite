@@ -2,8 +2,9 @@
 Node and relation instance objects
 """
 from __future__ import annotations
+
 from dataclasses import dataclass
-from typing import Dict, Any, Optional
+from typing import Any, Dict, Optional
 
 from .exceptions import NotFoundError
 from .types import NodeType, RelationType
@@ -11,8 +12,8 @@ from .types import NodeType, RelationType
 @dataclass
 class Node:
 	"""
-	A node in database. Has a base type, id, and properties from base type (and it's parent
-	type recursively).
+	A node in database. Has a base type, id, and properties from base type (and it's parent type
+	recursively).
 	"""
 	type_name: str
 	id: str
@@ -20,11 +21,24 @@ class Node:
 	type_ref: Optional[NodeType] = None
 
 	def get(self, field_name: str) -> Any:
-		"""Get a field from this node."""
+		"""
+		Get a field from this node
+
+		:param field_name: Field name
+
+		:return: Value
+		"""
 		return self.values.get(field_name)
 
 	def set(self, field_name: str, value: Any) -> None:
-		"""Set a field in this node."""
+		"""
+		Set a field in this node
+
+		:param field_name: Field name
+		:param value: Field value
+
+		:return: None
+		"""
 		if field_name not in self.values:
 			raise NotFoundError("Field", field_name)
 		self.values[field_name] = value
@@ -48,11 +62,24 @@ class Relation:
 	type_ref: Optional[RelationType] = None
 
 	def get(self, field_name: str) -> Any:
-		"""Get a field from this relation."""
+		"""
+		Get a field from this relation
+
+		:param field_name: field name
+
+		:return: Value
+		"""
 		return self.values.get(field_name)
 
 	def set(self, field_name: str, value: Any) -> None:
-		"""Set a field in this relation."""
+		"""
+		Set a field in this relation
+
+		:param field_name: field name
+		:param value: Field value
+
+		:return: None
+		"""
 		if field_name not in self.values:
 			raise NotFoundError("Field", field_name)
 		self.values[field_name] = value

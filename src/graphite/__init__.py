@@ -6,14 +6,14 @@ You can use it with ``import graphite``.
 """
 from warnings import simplefilter
 
-from .types import DataType, Field, NodeType, RelationType
-from .instances import Node, Relation
-from .serialization import GraphiteJSONEncoder
-from .parser import GraphiteParser
-from .query import QueryResult, QueryBuilder
 from .engine import GraphiteEngine
+from .instances import Node, Relation
 from .migration import Migration
-from .utils import node, relation, engine, SecurityWarning
+from .parser import GraphiteParser
+from .query import QueryBuilder, QueryResult
+from .serialization import GraphiteJSONEncoder
+from .types import DataType, Field, NodeType, RelationType
+from .utils import SecurityWarning, engine, node, relation
 
 simplefilter('always', SecurityWarning)
 
