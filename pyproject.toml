@@ -17,10 +17,18 @@ requires-python = ">=3.10"
 classifiers = [
     "Programming Language :: Python :: 3",
     "Operating System :: OS Independent",
+    "Topic :: Database :: Database Engines/Servers",
 ]
 license = "MIT"
-license-files = ["LICEN[CS]E*"]
+license-files = ["LICENSE"]
+import-names = ["graphite"]
+import-namespaces = ["graphite"]
 
 [project.urls]
-Homepage = "https://github.com/mkh-user/graphite"
+Homepage = "https://mkh-user.graphite.io/graphite"
+Source = "https://github.com/mkh-user/graphite"
+Download = "https://pypi.org/project/graphitedb/"
+Changelog = "https://github.com/mkh-user/graphite/blob/main/CHANGELOG.md"
+Releasenotes = "https://github.com/mkh-user/graphite/releases"
+Documentation = "https://mkh-user.graphite.io/graphite"
 Issues = "https://github.com/mkh-user/graphite/issues"
