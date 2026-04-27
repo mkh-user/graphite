@@ -36,7 +36,10 @@ class QueryResult:
 		"""
 		Change result nodes' values
 
+		**Note:** Field validation happens before any mutation.
+
 		**Note:** This query mutates nodes in-place and changes will be applied to engine directly.
+
 		**Note:** This query raises ``NotFoundError`` for nodes without compatible fields, use
 		``.with_fields()`` to ensure all fields are valid.
 
@@ -62,16 +65,17 @@ class QueryResult:
 		"""
 		Remove current result nodes
 
+		**Note:** Just valid nodes will be removed from engine.
+
 		**Note:** This query mutates nodes in-place and changes will be applied to engine directly.
 
 		:return: A new query with remaining valid edges and no nodes
-
-		:raise NotFoundError: if any nodes not found in engine
 		"""
 		for processing_node in self.nodes:
-			self.engine.remove_node(processing_node)
+			if processing_node.id in self.engine.nodes:
+				self.engine.remove_node(processing_node)
 		for relation in self.edges.copy():
-			if relation not in self.engine.relations:
+			if relation not in self.engine.relations_by_type.get(relation.type_name, []):
 				self.edges.remove(relation)
 		return QueryResult(self.engine, [], self.edges)
 
@@ -79,14 +83,16 @@ class QueryResult:
 		"""
 		Remove current result relations
 
-		**Note:** This query mutates nodes in-place and changes will be applied to engine directly.
+		**Note:** Just valid relations will be removed from engine.
+
+		**Note:** This query mutates relations in-place and changes will be applied to engine directly.
 
 		:return: A new query with current nodes and no relations
 
 		:raise NotFoundError: if any relations not found in engine
 		"""
 		for relation in self.edges:
-			if relation in self.engine.relations:
+			if relation in self.engine.relations_by_type.get(relation.type_name, []):
 				self.engine.remove_relation(relation)
 		return QueryResult(self.engine, self.nodes, [])
 
@@ -117,35 +123,6 @@ class QueryResult:
 					filtered_nodes.append(processing_node)
 
 		return QueryResult(self.engine, filtered_nodes, self.edges)
-
-	def with_type(self, node_type: str, include_parent_types: bool = True) -> 'QueryResult':
-		"""
-		Filter nodes based on type
-
-		:param node_type: node type to filter
-		:param include_parent_types: whether to include parent types or not
-
-		:return: a new query with nodes filtered based on type
-		"""
-		if include_parent_types:
-			n = [node for node in self.nodes if self.engine.is_node_from_type(node.id, node_type)]
-		else:
-			n = [node for node in self.nodes if node.type_name == node_type]
-		return QueryResult(self.engine, n, self.edges)
-
-	def with_fields(self, *fields: str) -> 'QueryResult':
-		"""
-		Filter nodes with given fields
-
-		:param fields: fields to filter
-
-		:return: a new query with nodes filtered based on fields
-		"""
-		return QueryResult(
-			self.engine,
-			[node for node in self.nodes if all(field in node.values for field in fields)],
-			self.edges
-		)
 
 	# pylint: disable=too-many-branches
 	@staticmethod
@@ -218,21 +195,71 @@ class QueryResult:
 
 		raise ConditionError(condition)
 
+	def with_type(self, node_type: str, include_parent_types: bool = True) -> 'QueryResult':
+		"""
+		Filter nodes based on type
+
+		**Note:** This query uses ``engine.is_node_from_type()`` when ``include_parent_types`` is
+		True. So invalid nodes will be ignored in this situation.
+
+		:param node_type: node type to filter
+		:param include_parent_types: whether to include parent types or not
+
+		:return: a new query with nodes filtered based on type
+		"""
+		if include_parent_types:
+			n = [
+				node for node in self.nodes if (
+					node in self.engine.nodes and
+					self.engine.is_node_from_type(node.id, node_type)
+				)
+			]
+		else:
+			n = [node for node in self.nodes if node.type_name == node_type]
+		return QueryResult(self.engine, n, self.edges)
+
+	def with_fields(self, *fields: str) -> 'QueryResult':
+		"""
+		Filter nodes with given fields
+
+		:param fields: fields to filter
+
+		:return: a new query with nodes filtered based on fields
+		"""
+		return QueryResult(
+			self.engine,
+			[node for node in self.nodes if all(field in node.values for field in fields)],
+			self.edges
+		)
+
 	def traverse(
 		self, relation_type: Optional[str] = None, direction: str = 'outgoing'
 	) -> 'QueryResult':
 		"""
 		Traverse relations from current nodes
 
+		**Note:** Invalid nodes will be removed while traversing relations.
+
 		:param relation_type: optional relation type for valid traverses
 		:param direction: traverse direction
 
 		:return: a new query with result nodes and traversed relations
+
+		:except NotFoundError: if relation_type is invalid for engine
 		"""
 		result_nodes = []
 		result_edges = []
 
+		if relation_type and relation_type not in self.engine.relation_types:
+			raise NotFoundError(
+				"Relation type",
+				relation_type
+			)
+
 		for processing_node in self.nodes:
+			if processing_node.id not in self.engine.nodes:
+				continue
+
 			if direction == 'outgoing':
 				edges = self.engine.get_relations_from(processing_node.id, relation_type)
 			elif direction == 'incoming':
@@ -421,10 +448,12 @@ class QueryResult:
 		:param field: field name
 
 		:return: average of field
+
+		:raise TypeError: If there isn't any numeric value in given field
 		"""
-		count = len([n for n in self.nodes if isinstance(n.get(field), (float, int))])
+		count = len([None for n in self.nodes if isinstance(n.get(field), (float, int))])
 		if count == 0:
-			return 0.0
+			raise TypeError(f"There is no node with numeric value for field {field}!")
 		return self.sum(field) / count
 
 	def min(self, field: str) -> float:
@@ -434,10 +463,12 @@ class QueryResult:
 		:param field: field name
 
 		:return: minimum value
+
+		:raise TypeError: If there isn't any numeric value in given field
 		"""
 		nodes = [n for n in self.nodes if isinstance(n.get(field), (float, int))]
 		if not nodes:
-			return 0.0
+			raise TypeError(f"There is no node with numeric value for field {field}!")
 		return reduce(
 			lambda x, y: x if x.get(field) < y.get(field) else y,
 			nodes
@@ -450,10 +481,12 @@ class QueryResult:
 		:param field: field name
 
 		:return: maximum value
+
+		:raise TypeError: If there isn't any numeric value in given field
 		"""
 		nodes = [n for n in self.nodes if isinstance(n.get(field), (float, int))]
 		if not nodes:
-			return 0.0
+			raise TypeError(f"There is no node with numeric value for field {field}!")
 		return reduce(
 			lambda x, y: x if x.get(field) > y.get(field) else y,
 			nodes

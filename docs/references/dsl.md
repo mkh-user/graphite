@@ -300,7 +300,7 @@ Rules:
 
 DSL parsing and validation may raise:
 
-* `SchemaError`
+* `ParseError`
 * `ValidationError`
 * `NotFoundError`
 * `InvalidPropertiesError`
