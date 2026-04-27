@@ -168,8 +168,7 @@ def graphite_object_hook(dct: dict[str, Any]) -> Any:
 	if graphite_type == "Field":
 		return Field(
 			name=dct["name"],
-			dtype=DataType(dct["dtype"]),
-			default=dct.get("default")
+			dtype=DataType(dct["dtype"])
 		)
 
 	return dct

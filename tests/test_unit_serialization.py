@@ -35,7 +35,7 @@ class TestGraphiteJSONEncoder:
 
 	def test_encode_field(self):
 		"""Test encoding Field objects"""
-		field = Field("name", DataType.STRING, "default")
+		field = Field("name", DataType.STRING)
 
 		encoder = GraphiteJSONEncoder()
 		result = encoder.default(field)
@@ -43,7 +43,6 @@ class TestGraphiteJSONEncoder:
 		assert result["__graphite_type__"] == "Field"
 		assert result["name"] == "name"
 		assert result["dtype"] == "string"
-		assert result["default"] == "default"
 
 	def test_encode_node_type(self):
 		"""Test encoding NodeType objects"""

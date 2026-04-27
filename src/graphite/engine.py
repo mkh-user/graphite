@@ -711,7 +711,7 @@ class GraphiteEngine:
 			else:
 				# Convert from dict if needed
 				fields: List[Field] = list(map(
-					lambda fld: Field(fld["name"], fld["dtype"], fld["default"]),
+					lambda fld: Field(fld["name"], fld["dtype"]),
 					nt_dict.get("fields", [])
 				))
 				nt = NodeType(

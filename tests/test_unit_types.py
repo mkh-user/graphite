@@ -34,17 +34,9 @@ class TestField:
 
 	def test_field_creation(self):
 		"""Test creating a field"""
-		field = Field("name", DataType.STRING, "default")
+		field = Field("name", DataType.STRING)
 		assert field.name == "name"
 		assert field.dtype == DataType.STRING
-		assert field.default == "default"
-
-	def test_field_without_default(self):
-		"""Test field without default value"""
-		field = Field("age", DataType.INT)
-		assert field.name == "age"
-		assert field.dtype == DataType.INT
-		assert field.default is None
 
 class TestNodeType:
 	"""Test NodeType class"""

@@ -24,7 +24,6 @@ class Field:
 	"""
 	name: str
 	dtype: DataType
-	default: Any = None
 
 @dataclass
 class NodeType:
