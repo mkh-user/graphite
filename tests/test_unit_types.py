@@ -29,6 +29,7 @@ class TestDataType:
 		with pytest.raises(ValueError):
 			DataType("invalid_type")
 
+# pylint: disable=too-few-public-methods
 class TestField:
 	"""Test Field class"""
 

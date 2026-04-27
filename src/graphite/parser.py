@@ -3,7 +3,7 @@ Parser for Graphite DSL
 """
 import re
 import warnings
-from datetime import date, datetime
+from datetime import datetime
 from typing import Any, List, Optional, Tuple
 
 from .exceptions import (

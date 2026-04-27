@@ -25,12 +25,6 @@ class Migration:
 
 		:return: None
 		"""
-		warnings.warn(
-			"'convert_pickle_to_json' will be deprecated because of security reasons. "
-			"Please convert your pickle files to JSON and don't use old files anymore.",
-			PendingDeprecationWarning
-		)
-
 		# Load from pickle (with safety warnings)
 		warnings.warn(
 			f"Loading from pickle file: {pickle_file}. "
