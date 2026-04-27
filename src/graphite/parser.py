@@ -45,45 +45,35 @@ class GraphiteParser:
 		"""
 		if value is None:
 			return None
-		exc = None
-		if field.dtype == DataType.STRING and not isinstance(value, str):
-			try:
-				value = str(exc)
-			except Exception as e:
-				exc = e
-		elif field.dtype == DataType.INT and not isinstance(value, int):
-			try:
+		try:
+			if field.dtype == DataType.STRING:
+				value = str(value)
+			elif field.dtype == DataType.INT:
 				value = int(value)
-			except Exception as e:
-				exc = e
-		elif field.dtype == DataType.DATE and not isinstance(value, (datetime, date)):
-			try:
-				value = datetime.strptime(value, "%Y-%m-%d").date()
-			except Exception as e:
-				exc = e
-		elif field.dtype == DataType.FLOAT and not isinstance(value, float):
-			try:
+			elif field.dtype == DataType.DATE:
+				if isinstance(value, datetime):
+					value = value.date()
+				elif isinstance(value, str):
+					value = datetime.strptime(value, "%Y-%m-%d").date()
+			elif field.dtype == DataType.FLOAT:
 				value = float(value)
-			except Exception as e:
-				exc = e
-		elif field.dtype == DataType.BOOL and not isinstance(value, bool):
-			if isinstance(value, str):
-				value = value.lower() == "true"
-			else:
-				try:
+			elif field.dtype == DataType.BOOL:
+				if isinstance(value, str):
+					value = value.lower() == "true"
+				else:
 					value = bool(value)
-				except Exception as e:
-					exc = e
-		elif field.dtype not in DataType:
-			raise NotFoundError(
-				"Data type",
-				str(field.dtype)
-			)
-		if exc is not None:
+			elif field.dtype not in DataType:
+				raise NotFoundError(
+					"Data type",
+					str(field.dtype)
+				)
+		except NotFoundError as e:
+			raise e
+		except Exception as e:
 			raise FieldError(
 				field,
 				value
-			) from exc
+			) from e
 		return value
 
 	# pylint: disable=too-many-return-statements

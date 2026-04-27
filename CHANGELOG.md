@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Query:** Fixed calling `remove()` query for invalid nodes raises `NotFoundError`
 - **Query:** Make all queries atomic
 - **Query:** Raise `TypeError` when all values are non-numeric in given field for `min()`, `max()`, `avg()`
+- Fixed always `'None'` for wrong-parsed string values
 
 ### Removed
 
