@@ -96,6 +96,20 @@ class QueryResult:
 				self.engine.remove_relation(relation)
 		return QueryResult(self.engine, self.nodes, [])
 
+	def validate(self) -> 'QueryResult':
+		"""
+		Removes invalid nodes and relations (remove additional items compared to engine)
+
+		:return: A new query with valid nodes and relations
+		"""
+		return QueryResult(
+			self.engine,
+			[node for node in self.nodes if node.id in self.engine.nodes],
+			[relation for relation in self.edges if (
+				relation in self.engine.relation_types.get(relation.type_name, [])
+			)]
+		)
+
 	def where(self, condition: Union[str, Callable]) -> 'QueryResult':
 		"""
 		Filter nodes based on condition
