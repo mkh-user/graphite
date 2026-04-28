@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Query:** Using type-based indexing for relation existent checks
 - **Query:** `validate()` to keep result valid
+- Benchmark suite
 
 ### Fixed
 
