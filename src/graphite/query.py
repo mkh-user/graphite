@@ -388,8 +388,9 @@ class QueryResult:
 		:return: a new query with excluded nodes and relations
 		"""
 		exclude_ids = {n.id for n in query.nodes}
+		exclude_edges = {id(e) for e in query.edges}
 		new_nodes = [n for n in self.nodes if n.id not in exclude_ids]
-		new_edges = [e for e in self.edges if e not in query.edges]
+		new_edges = [e for e in self.edges if id(e) not in exclude_edges]
 		return QueryResult(self.engine, new_nodes, new_edges)
 
 	def intersect(self, query: 'QueryResult') -> 'QueryResult':
@@ -402,8 +403,8 @@ class QueryResult:
 		"""
 		intersect_ids = {n.id for n in query.nodes}
 		new_nodes = [n for n in self.nodes if n.id in intersect_ids]
-		intersect_edges = query.edges
-		new_edges = [e for e in self.edges if e in intersect_edges]
+		intersect_edges = {id(e) for e in query.edges}
+		new_edges = [e for e in self.edges if id(e) in intersect_edges]
 		return QueryResult(self.engine, new_nodes, new_edges)
 
 	def distinct(self) -> 'QueryResult':
