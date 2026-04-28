@@ -484,14 +484,14 @@ class GraphiteEngine:
 				i += 1
 				continue
 
-			if line.startswith('node'):
+			if line.startswith('node '):
 				# Collect multiline node definition
 				node_def = [line]
 				i += 1
 				while (
 						i < len(lines)
 						and lines[i].strip()
-						and not lines[i].strip().startswith(('node', 'relation'))
+						and not lines[i].strip().startswith(('node ', 'relation '))
 				):
 					if lines[i].strip().startswith('#'):
 						i += 1
@@ -500,14 +500,14 @@ class GraphiteEngine:
 					i += 1
 				self.define_node('\n'.join(node_def))
 
-			elif line.startswith('relation'):
+			elif line.startswith('relation '):
 				# Collect multiline relation definition
 				rel_def = [line]
 				i += 1
 				while (
 						i < len(lines)
 						and lines[i].strip()
-						and not lines[i].strip().startswith(('node', 'relation'))
+						and not lines[i].strip().startswith(('node ', 'relation '))
 				):
 					if lines[i].strip().startswith('#'):
 						i += 1

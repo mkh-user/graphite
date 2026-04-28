@@ -145,10 +145,10 @@ class GraphiteParser:
 					first_line.find(' from ')
 				)
 
-			node_name = parts[0].replace('node', '').strip()
+			node_name = parts[0].replace('node ', '', 1).strip()
 			parent = parts[1].strip()
 		else:
-			node_name = first_line.replace('node', '').strip()
+			node_name = first_line.replace('node ', '', 1).strip()
 			parent = None
 
 		fields = []
@@ -240,10 +240,10 @@ class GraphiteParser:
 					first_line.find(' reverse ') + 1
 				)
 
-			relation_name = parts[0].replace('relation', '').strip()
+			relation_name = parts[0].replace('relation ', '', 1).strip()
 			reverse_name = parts[1].strip()
 		else:
-			relation_name = first_line.replace('relation', '').strip()
+			relation_name = first_line.replace('relation ', '', 1).strip()
 
 		if is_bidirectional and reverse_name:
 			raise RelationTypeDefineError(relation_name)
