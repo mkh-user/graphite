@@ -71,13 +71,9 @@ class QueryResult:
 
 		:return: A new query with remaining valid edges and no nodes
 		"""
-		for processing_node in self.nodes:
-			if processing_node.id in self.engine.nodes:
-				self.engine.remove_node(processing_node)
-		for relation in self.edges.copy():
-			if relation not in self.engine.relations_by_type.get(relation.type_name, []):
-				self.edges.remove(relation)
-		return QueryResult(self.engine, [], self.edges)
+		validated = self.validate()
+		self.engine.remove_node(validated.nodes)
+		return self.validate()
 
 	def remove_relations(self) -> 'QueryResult':
 		"""
@@ -102,11 +98,12 @@ class QueryResult:
 
 		:return: A new query with valid nodes and relations
 		"""
+		relation_ids = {id(r) for r in self.engine.relations}
 		return QueryResult(
 			self.engine,
 			[node for node in self.nodes if node.id in self.engine.nodes],
 			[relation for relation in self.edges if (
-				relation in self.engine.relation_types.get(relation.type_name, [])
+				id(relation) in relation_ids
 			)]
 		)
 

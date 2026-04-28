@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Query:** Using type-based indexing for relation existent checks
 - **Query:** `validate()` to keep result valid
 - Benchmark suite
+- Add support for removing multiple nodes at single `remove_node()` call with less complexity
 
 ### Fixed
 
@@ -21,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed always `'None'` for wrong-parsed string values
 - Fixed replacing all used `node` and `relation` words in node / relation definitions
 - **Query:** Fixed `O(n^2)` for `exclude()` and `intersect()`
+- **Query:** Speed up `remove()` with reduce complexity
 
 ### Removed
 

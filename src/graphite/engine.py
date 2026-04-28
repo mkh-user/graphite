@@ -5,7 +5,7 @@ import json
 import os
 import warnings
 from collections import defaultdict
-from typing import Any, Dict, List, Union
+from typing import Any, Dict, List, Set, Union
 
 from typing_extensions import deprecated
 
@@ -409,37 +409,52 @@ class GraphiteEngine:
 		self.relation_types.pop(relation_type)
 		self.relations_by_type.pop(relation_type, None)
 
-	def remove_node(self, node: Union[Node, str]) -> None:
+	def remove_node(self, nodes: Union[Node, str, List[Union[Node, str]]]) -> None:
 		"""
-		Remove a node and all its relations
+		Remove given nodes and all their relations
 
-		:param node: Node ID string or node object
+		**Note:** When removing multiple nodes, this method is significantly faster than
+        calling it repeatedly because indexes are rebuilt only once.
+
+		:param nodes: List of node ID strings or node objects
 
 		:return: None
 
-		:except NotFoundError: if `node` not defined
+		:except NotFoundError: if any node is not found
 		"""
-		if isinstance(node, str):
-			if node not in self.nodes:
-				raise NotFoundError(
-					"Node",
-					node
-				)
-			node_type = self.nodes[node].type_name
-		else:
-			if node.id not in self.nodes or self.nodes[node.id] is not node:
-				raise NotFoundError(
-					"Node",
-					node.id
-				)
-			node_type = node.type_name
-			node = node.id
-		for from_rel in self.get_relations_from(node).copy():
-			self.remove_relation(from_rel)
-		for to_rel in self.get_relations_to(node).copy():
-			self.remove_relation(to_rel)
-		removed = self.nodes.pop(node)
-		self.node_by_type[node_type].remove(removed)
+		# Normalize to list
+		if not isinstance(nodes, list):
+			nodes = [nodes]
+
+		# Pre-validation: make sure all nodes exist (fail fast)
+		for node in nodes:
+			if isinstance(node, str):
+				if node not in self.nodes:
+					raise NotFoundError("Node", node)
+			else:
+				if node.id not in self.nodes or self.nodes[node.id] is not node:
+					raise NotFoundError("Node", node.id)
+
+		# Collect IDs of all relations that must be deleted
+		relation_ids_to_remove: Set[int] = set()
+		for node in nodes:
+			node_id = node if isinstance(node, str) else node.id
+			for rel in self.get_relations_from(node_id):
+				relation_ids_to_remove.add(id(rel))
+			for rel in self.get_relations_to(node_id):
+				relation_ids_to_remove.add(id(rel))
+
+		# Filter the relations list
+		self.relations = [r for r in self.relations
+			if id(r) not in relation_ids_to_remove]
+
+		# Remove nodes from main storage and by-type index
+		for node in nodes:
+			node_id = node if isinstance(node, str) else node.id
+			self.nodes.pop(node_id)
+
+		# Rebuild all relation indexes once (nodes and relations)
+		self._rebuild_all_indexes()
 
 	def remove_relation(self, relation: Relation) -> None:
 		"""
