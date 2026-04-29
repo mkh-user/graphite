@@ -5,7 +5,7 @@ import json
 import os
 import warnings
 from collections import defaultdict
-from typing import Any, Dict, List, Set, Union
+from typing import Any
 
 from typing_extensions import deprecated
 
@@ -21,19 +21,19 @@ from .types import Field, NodeType, RelationType
 
 SAVE_FILE_VERSION = "1.0"
 
-# pylint: disable=too-many-instance-attributes
+# pylint: disable=too-many-instance-attributes, too-many-public-methods
 class GraphiteEngine:
 	"""Main graph database engine"""
 
 	def __init__(self):
-		self.node_types: Dict[str, NodeType] = {}
-		self.relation_types: Dict[str, RelationType] = {}
-		self.nodes: Dict[str, Node] = {}
-		self.relations: List[Relation] = []
-		self.node_by_type: Dict[str, List[Node]] = defaultdict(list)
-		self.relations_by_type: Dict[str, List[Relation]] = defaultdict(list)
-		self.relations_by_from: Dict[str, List[Relation]] = defaultdict(list)
-		self.relations_by_to: Dict[str, List[Relation]] = defaultdict(list)
+		self.node_types: dict[str, NodeType] = {}
+		self.relation_types: dict[str, RelationType] = {}
+		self.nodes: dict[str, Node] = {}
+		self.relations: dict[int, Relation] = {}
+		self.node_by_type: dict[str, set[Node]] = defaultdict(set)
+		self.relations_by_type: dict[str, set[int]] = defaultdict(set)
+		self.relations_by_from: dict[str, set[int]] = defaultdict(set)
+		self.relations_by_to: dict[str, set[int]] = defaultdict(set)
 		self.parser = GraphiteParser()
 		self.query = QueryBuilder(self)
 
@@ -143,7 +143,7 @@ class GraphiteEngine:
 
 		new_node = Node(node_type, node_id, node_values, node_type_obj)
 		self.nodes[node_id] = new_node
-		self.node_by_type[node_type].append(new_node)
+		self.node_by_type[node_type].add(new_node)
 		return new_node
 
 	def create_relation(self, from_id: str, to_id: str, rel_type: str, *values) -> Relation:
@@ -203,18 +203,20 @@ class GraphiteEngine:
 			rel_values[current_field.name] = self.parser.parse_field_value(value, current_field)
 
 		new_relation = Relation(rel_type, from_id, to_id, rel_values, rel_type_obj)
-		self.relations.append(new_relation)
-		self.relations_by_type[rel_type].append(new_relation)
-		self.relations_by_from[from_id].append(new_relation)
-		self.relations_by_to[to_id].append(new_relation)
+		relation_id = id(new_relation)
+		self.relations[relation_id] = new_relation
+		self.relations_by_type[rel_type].add(relation_id)
+		self.relations_by_from[from_id].add(relation_id)
+		self.relations_by_to[to_id].add(relation_id)
 
 		# If relation is bidirectional, create reverse automatically
 		if rel_type_obj.is_bidirectional:
 			reverse_rel = Relation(rel_type, to_id, from_id, rel_values, rel_type_obj)
-			self.relations.append(reverse_rel)
-			self.relations_by_type[rel_type].append(reverse_rel)
-			self.relations_by_from[to_id].append(reverse_rel)
-			self.relations_by_to[from_id].append(reverse_rel)
+			reverse_id = id(reverse_rel)
+			self.relations[reverse_id] = reverse_rel
+			self.relations_by_type[rel_type].add(reverse_id)
+			self.relations_by_from[to_id].add(reverse_id)
+			self.relations_by_to[from_id].add(reverse_id)
 
 		return new_relation
 
@@ -270,14 +272,14 @@ class GraphiteEngine:
 			)
 		return self.nodes.get(node_id)
 
-	def get_nodes_of_type(self, node_type: str, with_subtypes: bool = True) -> List[Node]:
+	def get_nodes_of_type(self, node_type: str, with_subtypes: bool = True) -> set[Node]:
 		"""
 		Get all nodes of a specific type
 
 		:param node_type: Node type string
 		:param with_subtypes: If `with_subtypes` is True, adds all subtypes of node type recursively
 
-		:return: List of Node objects
+		:return: Set of Node objects
 
 		:except NotFoundError: if `node_type` not defined
 		"""
@@ -287,23 +289,21 @@ class GraphiteEngine:
 				node_type
 			)
 
-		nodes: List[Node] = self.node_by_type.get(node_type, [])
+		nodes = self.node_by_type[node_type]
 		if with_subtypes:
 			for ntype in self.node_types.values():
 				if ntype.parent and ntype.parent.name == node_type:
-					for new_node in self.get_nodes_of_type(ntype.name):
-						if new_node not in nodes:
-							nodes.append(new_node)
+					nodes.update(self.get_nodes_of_type(ntype.name, True))
 		return nodes
 
-	def get_relations_from(self, node_id: str, rel_type: str = None) -> List[Relation]:
+	def get_relations_from(self, node_id: str, rel_type: str = None) -> set[Relation]:
 		"""
 		Get relations from a node
 
 		:param node_id: Node ID
 		:param rel_type: Relation type to filter on, or ``None`` to keep all types
 
-		:return: List of Relations
+		:return: Set of Relations
 
 		:except NotFoundError: if `rel_type` or `node_id` not defined
 		"""
@@ -318,19 +318,19 @@ class GraphiteEngine:
 				node_id
 			)
 
-		all_rels = self.relations_by_from.get(node_id, [])
+		result_ids = self.relations_by_from[node_id]
 		if rel_type:
-			return [r for r in all_rels if r.type_name == rel_type]
-		return all_rels
+			result_ids = [r for r in result_ids if r in self.relations_by_type[rel_type]]
+		return {self.relations[rel_id] for rel_id in result_ids}
 
-	def get_relations_to(self, node_id: str, rel_type: str = None) -> List[Relation]:
+	def get_relations_to(self, node_id: str, rel_type: str = None) -> set[Relation]:
 		"""
 		Get relations to a node
 
 		:param node_id: Node ID
 		:param rel_type: Relation type to filter on, or ``None`` to keep all types
 
-		:return: List of Relations
+		:return: Set of Relations
 
 		:except NotFoundError: if `rel_type` or `node_id` not defined
 		"""
@@ -345,10 +345,10 @@ class GraphiteEngine:
 				node_id
 			)
 
-		all_rels = self.relations_by_to.get(node_id, [])
+		result_ids = self.relations_by_to[node_id]
 		if rel_type:
-			return [r for r in all_rels if r.type_name == rel_type]
-		return all_rels
+			result_ids = [r for r in result_ids if r in self.relations_by_type[rel_type]]
+		return {self.relations[rel_id] for rel_id in result_ids}
 
 	def undefine_node(self, node_type: str) -> None:
 		"""
@@ -365,26 +365,15 @@ class GraphiteEngine:
 				"Node type",
 				node_type
 			)
-		for instance in self.node_by_type[node_type].copy():
-			self.remove_node(instance)
-		relation_types_to_remove = []
-		node_types_to_remove = []
-		for relation_type in self.relation_types.values():
-			if relation_type.from_type == node_type:
-				relation_types_to_remove.append(relation_type.name)
-			elif relation_type.to_type == node_type:
-				relation_types_to_remove.append(relation_type.name)
 		for ntype in self.node_types.values():
-			if ntype.parent == self.node_types[node_type]:
-				node_types_to_remove.append(ntype.name)
-		for processing_rel in relation_types_to_remove:
-			if processing_rel in self.relation_types:
-				self.undefine_relation(processing_rel)
-		for processing_node in node_types_to_remove:
-			if processing_node in self.node_types:
-				self.undefine_node(processing_node)
-		self.node_by_type.pop(node_type, None)
-		self.node_types.pop(node_type, None)
+			if ntype.parent and ntype.parent.name == node_type:
+				self.undefine_node(ntype.name)
+		for rtype in self.relation_types.values():
+			if node_type in (rtype.from_type, rtype.to_type):
+				self.undefine_relation(rtype.name)
+		self.remove_nodes(self.node_by_type[node_type])
+		del self.node_types[node_type]
+		self.node_by_type.pop(node_type)
 
 	def undefine_relation(self, relation_type: str, _is_reverse: bool = False) -> None:
 		"""
@@ -402,79 +391,108 @@ class GraphiteEngine:
 				"Relation type",
 				relation_type
 			)
-		for instance in self.relations_by_type[relation_type].copy():
-			self.remove_relation(instance)
 		if not _is_reverse and self.relation_types[relation_type].reverse_name:
 			self.undefine_relation(self.relation_types[relation_type].reverse_name, True)
-		self.relation_types.pop(relation_type)
-		self.relations_by_type.pop(relation_type, None)
+		self.remove_relations({self.relations[r] for r in self.relations_by_type[relation_type]})
+		del self.relation_types[relation_type]
+		self.relations_by_type.pop(relation_type)
 
-	def remove_node(self, nodes: Union[Node, str, List[Union[Node, str]]]) -> None:
+	def remove_nodes(
+		self,
+		nodes: Node | str | set[Node | str] | list[Node | str]
+	) -> None:
 		"""
 		Remove given nodes and all their relations
 
 		**Note:** When removing multiple nodes, this method is significantly faster than
         calling it repeatedly because indexes are rebuilt only once.
 
-		:param nodes: List of node ID strings or node objects
+		:param nodes: Set, list, or one of node ID strings or node objects
 
 		:return: None
 
 		:except NotFoundError: if any node is not found
 		"""
-		# Normalize to list
-		if not isinstance(nodes, list):
-			nodes = [nodes]
+		if isinstance(nodes, list):
+			nodes = set(nodes)
+		elif isinstance(nodes, (str, Node)):
+			nodes = {nodes}
 
-		# Pre-validation: make sure all nodes exist (fail fast)
 		for node in nodes:
-			if isinstance(node, str):
-				if node not in self.nodes:
-					raise NotFoundError("Node", node)
-			else:
-				if node.id not in self.nodes or self.nodes[node.id] is not node:
-					raise NotFoundError("Node", node.id)
+			if isinstance(node, Node):
+				nodes.remove(node)
+				nodes.add(node.id)
+				node = node.id
+			if node not in self.nodes:
+				raise NotFoundError("Node", node)
 
-		# Collect IDs of all relations that must be deleted
-		relation_ids_to_remove: Set[int] = set()
+		relations_to_remove: set[int] = set()
+
 		for node in nodes:
-			node_id = node if isinstance(node, str) else node.id
-			for rel in self.get_relations_from(node_id):
-				relation_ids_to_remove.add(id(rel))
-			for rel in self.get_relations_to(node_id):
-				relation_ids_to_remove.add(id(rel))
+			for rel in self.relations_by_from[node]:
+				relations_to_remove.add(rel)
+			for rel in self.relations_by_to[node]:
+				relations_to_remove.add(rel)
 
-		# Filter the relations list
-		self.relations = [r for r in self.relations
-			if id(r) not in relation_ids_to_remove]
+			n = self.nodes.pop(node)
+			self.node_by_type[n.type_name].discard(n)
 
-		# Remove nodes from main storage and by-type index
-		for node in nodes:
-			node_id = node if isinstance(node, str) else node.id
-			self.nodes.pop(node_id)
+		self.remove_relations({self.relations[rel] for rel in relations_to_remove})
 
-		# Rebuild all relation indexes once (nodes and relations)
-		self._rebuild_all_indexes()
-
-	def remove_relation(self, relation: Relation) -> None:
+	def remove_relations(self, relations: Relation | set[Relation] | list[Relation]) -> None:
 		"""
-		Remove a relation
+		Removes given relations
 
-		:param relation: Relation object
+		:param relations: Set, list, or one of relation objects
 
 		:return: None
 
-		:except NotFoundError: if `relation` not defined
+		:except NotFoundError: if any relation is not found
 		"""
-		if relation not in self.relations:
-			raise NotFoundError(
-				"Relation",
-				str(relation)
-			)
-		self.relations.remove(relation)
-		self.relations_by_type[relation.type_name].remove(relation)
-		self.relations_by_from[relation.from_node].remove(relation)
-		self.relations_by_to[relation.to_node].remove(relation)
+		if isinstance(relations, list):
+			relations = set(relations)
+		elif isinstance(relations, Relation):
+			relations = {relations}
+
+		for rel in relations:
+			if id(rel) not in self.relations:
+				raise NotFoundError("Relation", str(rel))
+
+		for rel in relations:
+			rel_id = id(rel)
+			del self.relations[rel_id]
+			self.relations_by_type[rel.type_name].discard(rel)
+			self.relations_by_from[rel.from_node].discard(rel)
+			self.relations_by_to[rel.to_node].discard(rel)
+
+	@deprecated("Use remove_nodes() instead")
+	def remove_node(self, node: Node | str | list[Node | str]) -> None:
+		"""
+		Remove given nodes and all their relations
+
+		**Note:** When removing multiple nodes, this method is significantly faster than
+        calling it repeatedly because indexes are rebuilt only once.
+
+		:param node: List of node ID strings or node objects
+
+		:return: None
+
+		:except NotFoundError: if any node is not found
+		"""
+		return self.remove_nodes(node)
+
+	@deprecated("Use remove_relations() instead")
+	def remove_relation(self, relation: Relation | set[Relation] | list[Relation]) -> None:
+		"""
+		Removes given relations
+
+		:param relation: Set, list, or one of relation objects
+
+		:return: None
+
+		:except NotFoundError: if any relation is not found
+		"""
+		return self.remove_relations(relation)
 
 	# ============= BULK LOADING / DSL =============
 
@@ -572,7 +590,7 @@ class GraphiteEngine:
 			json.dump(data, f, cls=GraphiteJSONEncoder, indent=2, ensure_ascii=False)
 
 	def load_safe(
-		self, file_path: str, max_size_mb: Union[int, float] = 100, validate_schema: bool = True,
+		self, file_path: str, max_size_mb: int | float = 100, validate_schema: bool = True,
 		accept_any_extension: bool = False
 	) -> None:
 		"""
@@ -621,7 +639,7 @@ class GraphiteEngine:
 
 	# pylint: disable=too-many-branches
 	@staticmethod
-	def _validate_loaded_data(data: Dict[str, Any]) -> None:
+	def _validate_loaded_data(data: dict[str, Any]) -> None:
 		"""
 		Validate loaded data for consistency
 
@@ -703,7 +721,7 @@ class GraphiteEngine:
 				)
 
 	# pylint: disable=too-many-locals
-	def _load_from_dict(self, data: Dict[str, Any]) -> None:
+	def _load_from_dict(self, data: dict[str, Any]) -> None:
 		"""
 		Internal method to load from dictionary (used by both load and load_safe)
 
@@ -725,7 +743,7 @@ class GraphiteEngine:
 				nt = nt_dict
 			else:
 				# Convert from dict if needed
-				fields: List[Field] = list(map(
+				fields: list[Field] = list(map(
 					lambda fld: Field(fld["name"], fld["dtype"]),
 					nt_dict.get("fields", [])
 				))
@@ -799,12 +817,12 @@ class GraphiteEngine:
 			if rel.type_name in self.relation_types:
 				rel.type_ref = self.relation_types[rel.type_name]
 
-			self.relations.append(rel)
+			self.relations[id(rel)] = rel
 
 		# Rebuild all indexes
 		self._rebuild_all_indexes()
 
-	def _build_save_payload(self) -> Dict[str, Any]:
+	def _build_save_payload(self) -> dict[str, Any]:
 		"""
 		Build a JSON-serializable payload for persistence
 
@@ -816,7 +834,7 @@ class GraphiteEngine:
 			"relation_types"   : list(self.relation_types.values()),
 			"nodes"            : list(self.nodes.values()),
 			"relations"        : sorted(
-				self.relations,
+				self.relations.values(),
 				key=lambda r: (
 					r.type_name,
 					r.from_node,
@@ -824,10 +842,6 @@ class GraphiteEngine:
 					sorted((k, str(v)) for k, v in r.values.items())
 				)
 			),
-			"node_by_type"     : dict(self.node_by_type.items()),
-			"relations_by_type": dict(self.relations_by_type.items()),
-			"relations_by_from": dict(self.relations_by_from.items()),
-			"relations_by_to"  : dict(self.relations_by_to.items()),
 		}
 
 	def _rebuild_all_indexes(self) -> None:
@@ -836,18 +850,18 @@ class GraphiteEngine:
 
 		:return: None
 		"""
-		self.node_by_type = defaultdict(list)
+		self.node_by_type.clear()
+		self.relations_by_type.clear()
+		self.relations_by_from.clear()
+		self.relations_by_to.clear()
+
 		for node_instance in self.nodes.values():
-			self.node_by_type[node_instance.type_name].append(node_instance)
+			self.node_by_type[node_instance.type_name].add(node_instance)
 
-		self.relations_by_type = defaultdict(list)
-		self.relations_by_from = defaultdict(list)
-		self.relations_by_to = defaultdict(list)
-
-		for rel in self.relations:
-			self.relations_by_type[rel.type_name].append(rel)
-			self.relations_by_from[rel.from_node].append(rel)
-			self.relations_by_to[rel.to_node].append(rel)
+		for rel_id, rel in self.relations.items():
+			self.relations_by_type[rel.type_name].add(rel_id)
+			self.relations_by_from[rel.from_node].add(rel_id)
+			self.relations_by_to[rel.to_node].add(rel_id)
 
 	def load(self, filename: str, safe_mode: bool = True) -> None:
 		"""
@@ -899,7 +913,7 @@ class GraphiteEngine:
 		self.relations_by_from.clear()
 		self.relations_by_to.clear()
 
-	def stats(self) -> Dict[str, Any]:
+	def stats(self) -> dict[str, Any]:
 		"""
 		Get database statistics
 

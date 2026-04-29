@@ -13,6 +13,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Query:** `validate()` to keep result valid
 - Benchmark suite
 - Add support for removing multiple nodes at single `remove_node()` call with less complexity
+- `id()` based indexing for relations
+- `remove_nodes()` and `remove_relations()`
+- Hash and compare support for nodes and relations
+- **Query:** Add sort support for `limit()`, `paginate()`, and `first()`
+
+### Changed
+
+- **Query:** `set()` -> `set_val()`
+- Return type of `get_nodes_of_type()`, `get_relations_from()`, `get_relations_to()` to `set`
+- **Query:** return type of `get()`, `relations()`, and `ids()` to `set`
+- **Query:** return type of `group_by()` to `dict[Any, set[Node]]`
+- **Query:** `order_by()` returns sorted list of nodes (because internal query result is a `set`), use in-place sorting
+  in `limit()`, `paginate()`, and `first()` instead.
 
 ### Fixed
 
@@ -21,12 +34,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Query:** Raise `TypeError` when all values are non-numeric in given field for `min()`, `max()`, `avg()`
 - Fixed always `'None'` for wrong-parsed string values
 - Fixed replacing all used `node` and `relation` words in node / relation definitions
-- **Query:** Fixed `O(n^2)` for `exclude()` and `intersect()`
-- **Query:** Speed up `remove()` with reduce complexity
+- Fixed outdated type hints
+- Fixed slowness problems:
+  - **Query:** `exclude()`: ~0.05 ms (10x faster)
+  - **Query:** `intersect()`: ~0.20 ms (6x faster)
+  - **Query:** `remove()`: ~0.55 ms (6x faster)
+  - **Query:** Batch remove for `remove_relations()` (~6x faster)
+  - `remove_node()`, `remove_nodes()`: ~0.55 ms (6x faster)
+  - `load()`: ~45.22 ms (2x faster)
+  - `save()`: ~251.76 ms (2x faster)
+  - Improves for `define_node()`, `define_relation()`, `undefine_node()`, `undefine_relation()`, `create_node()`,
+    `create_relation()`, `remove_relation()`
+- Remove unused indexing from save file (no version change)
+
+### Deprecated
+
+- `remove_node()` -> `remove_nodes()`
+- `remove_relation()` -> `remove_relations()`
+- **Query:** `distinct()`: Query results are always unique
+- **Query:** using internal `edges` attribute returns a set of relation object IDs (instead of list of relation objects)
 
 ### Removed
 
 - Unused `types.Field.default`
+- **Query:** `auto_distinct` from `union()`: Query results are always unique
+- **Query:** `NotFoundError` for invalid start points (returns `None` instead)
 
 ## [0.3] - 2026-04-25
 

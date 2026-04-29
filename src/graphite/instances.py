@@ -4,7 +4,7 @@ Node and relation instance objects
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Dict, Optional
+from typing import Any
 
 from .exceptions import NotFoundError
 from .types import NodeType, RelationType
@@ -17,8 +17,8 @@ class Node:
 	"""
 	type_name: str
 	id: str
-	values: Dict[str, Any]
-	type_ref: Optional[NodeType] = None
+	values: dict[str, Any]
+	type_ref: NodeType | None = None
 
 	def get(self, field_name: str) -> Any:
 		"""
@@ -43,11 +43,19 @@ class Node:
 			raise NotFoundError("Field", field_name)
 		self.values[field_name] = value
 
-	def __getitem__(self, key):
+	def __getitem__(self, key) -> Any:
 		return self.get(key)
 
-	def __repr__(self):
+	def __repr__(self) -> str:
 		return f"Node({self.type_name}:{self.id})"
+
+	def __hash__(self) -> int:
+		return hash(self.id)
+
+	def __eq__(self, other) -> bool:
+		if not isinstance(other, Node):
+			return NotImplemented
+		return self.id == other.type_name, other.id
 
 @dataclass
 class Relation:
@@ -58,8 +66,8 @@ class Relation:
 	type_name: str
 	from_node: str  # node id
 	to_node: str  # node id
-	values: Dict[str, Any]
-	type_ref: Optional[RelationType] = None
+	values: dict[str, Any]
+	type_ref: RelationType | None = None
 
 	def get(self, field_name: str) -> Any:
 		"""
@@ -84,8 +92,16 @@ class Relation:
 			raise NotFoundError("Field", field_name)
 		self.values[field_name] = value
 
-	def __getitem__(self, key):
+	def __getitem__(self, key) -> Any:
 		return self.get(key)
 
-	def __repr__(self):
+	def __repr__(self) -> str:
 		return f"Relation({self.type_name}:{self.from_node}->{self.to_node})"
+
+	def __hash__(self) -> int:
+		return hash(id(self))
+
+	def __eq__(self, other) -> bool:
+		if not isinstance(other, Relation):
+			return NotImplemented
+		return id(self) == id(other)

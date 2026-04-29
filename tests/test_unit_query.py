@@ -4,7 +4,6 @@ from datetime import date
 import pytest
 
 from src.graphite.exceptions import ConditionError, DateParseError, NotFoundError
-from src.graphite.query import QueryResult
 
 class TestQueryBuilder:
 	"""Test QueryBuilder class"""
@@ -48,7 +47,7 @@ class TestQueryResult: # pylint: disable=too-many-public-methods
 
 		assert len(result.nodes) == len(nodes)
 		assert result.engine == engine
-		assert result.edges == []
+		assert result.edges == set()
 
 	def test_where_lambda(self, populated_engine):
 		"""Test where with lambda condition"""
@@ -58,7 +57,7 @@ class TestQueryResult: # pylint: disable=too-many-public-methods
 		filtered = result.where(lambda n: n["age"] > 25)
 
 		assert len(filtered.nodes) == 1
-		assert filtered.nodes[0]["name"] == "Alice"
+		assert next(iter(filtered.get()))["name"] == "Alice"
 
 	def test_where_string_condition(self, populated_engine):
 		"""Test where with string condition"""
@@ -68,7 +67,7 @@ class TestQueryResult: # pylint: disable=too-many-public-methods
 		filtered = result.where("age > 25")
 
 		assert len(filtered.nodes) == 1
-		assert filtered.nodes[0]["name"] == "Alice"
+		assert next(iter(filtered.get()))["name"] == "Alice"
 
 	def test_where_string_equality(self, populated_engine):
 		"""Test where with equality condition"""
@@ -78,7 +77,7 @@ class TestQueryResult: # pylint: disable=too-many-public-methods
 		filtered = result.where('name = "Alice"')
 
 		assert len(filtered.nodes) == 1
-		assert filtered.nodes[0]["name"] == "Alice"
+		assert next(iter(filtered.get()))["name"] == "Alice"
 
 		# Alternative equality syntax
 		filtered2 = result.where('name == "Alice"')
@@ -91,7 +90,7 @@ class TestQueryResult: # pylint: disable=too-many-public-methods
 		filtered = result.where('name != "Alice"')
 
 		assert len(filtered.nodes) == 1
-		assert filtered.nodes[0]["name"] == "Bob"
+		assert next(iter(filtered.get()))["name"] == "Bob"
 
 	def test_where_comparison_operators(self, populated_engine):
 		"""Test where with various comparison operators"""
@@ -152,12 +151,12 @@ class TestQueryResult: # pylint: disable=too-many-public-methods
 		works_at_result = result.traverse("WORKS_AT", "outgoing")
 
 		assert len(works_at_result.nodes) == 1
-		assert works_at_result.nodes[0].type_name == "Company"
-		assert works_at_result.nodes[0]["name"] == "TechCorp"
+		assert next(iter(works_at_result.nodes)).type_name == "Company"
+		assert next(iter(works_at_result.nodes))["name"] == "TechCorp"
 
 		# Check edges were captured
 		assert len(works_at_result.edges) == 1
-		assert works_at_result.edges[0].type_name == "WORKS_AT"
+		assert populated_engine.relations[next(iter(works_at_result.edges))].type_name == "WORKS_AT"
 
 	def test_outgoing_method(self, populated_engine):
 		"""Test outgoing shortcut method"""
@@ -166,7 +165,7 @@ class TestQueryResult: # pylint: disable=too-many-public-methods
 		works_at_result = result.outgoing("WORKS_AT")
 
 		assert len(works_at_result.nodes) == 1
-		assert works_at_result.nodes[0].type_name == "Company"
+		assert next(iter(works_at_result.nodes)).type_name == "Company"
 
 	def test_incoming_method(self, populated_engine):
 		"""Test incoming shortcut method"""
@@ -223,15 +222,13 @@ class TestQueryResult: # pylint: disable=too-many-public-methods
 		limited = result.limit(1)
 
 		assert len(limited.nodes) == 1
-		# Should preserve original order (first created)
-		assert limited.nodes[0]["name"] == "Alice"
 
 	def test_paginate(self, populated_engine):
 		"""Test paginating query results."""
-		result = populated_engine.query.Person.order_by("age")
+		result = populated_engine.query.Person
 
-		first_page = result.paginate(1, 1)
-		second_page = result.paginate(2, 1)
+		first_page = result.paginate(1, 1, "age")
+		second_page = result.paginate(2, 1, "age")
 
 		assert first_page.count() == 1
 		assert first_page.first()["name"] == "Bob"
@@ -240,36 +237,16 @@ class TestQueryResult: # pylint: disable=too-many-public-methods
 
 	def test_paginate_with_invalid_values(self, populated_engine):
 		"""Test paginate fallback behavior for invalid page/per-page values."""
-		result = populated_engine.query.Person.order_by("age")
+		result = populated_engine.query.Person
 
-		fallback_first_page = result.paginate(0, 1)
-		empty_page = result.paginate(1, 0)
-		negative_per_page = result.paginate(0, -1)
+		fallback_first_page = result.paginate(0, 1, "age")
+		empty_page = result.paginate(1, 0, "age")
+		negative_per_page = result.paginate(0, -1, "age")
 
 		assert fallback_first_page.count() == 1
 		assert fallback_first_page.first()["name"] == "Bob"
 		assert empty_page.count() == 0
 		assert negative_per_page.count() == 0
-
-	def test_distinct(self, populated_engine):
-		"""Test getting distinct nodes"""
-		# Create duplicate references
-		engine = populated_engine
-
-		# Get Alice through multiple paths
-		alice = engine.get_node("person1")
-		result = engine.query.Person.where('name = "Alice"')
-
-		# Manually create duplicate nodes in result
-
-		duplicate_result = QueryResult(engine, [alice, alice, alice], [])
-
-		distinct_result = duplicate_result.distinct()
-
-		assert len(result.nodes) == 1
-		assert result.nodes[0]["name"] == "Alice"
-		assert len(distinct_result.nodes) == 1
-		assert distinct_result.nodes[0]["name"] == "Alice"
 
 	def test_order_by_ascending(self, populated_engine):
 		"""Test ordering results ascending"""
@@ -277,21 +254,21 @@ class TestQueryResult: # pylint: disable=too-many-public-methods
 
 		ordered = result.order_by("age")
 
-		assert len(ordered.nodes) == 2
+		assert len(ordered) == 2
 		# Bob (25) should come before Alice (30)
-		assert ordered.nodes[0]["name"] == "Bob"
-		assert ordered.nodes[1]["name"] == "Alice"
+		assert ordered[0]["name"] == "Bob"
+		assert ordered[1]["name"] == "Alice"
 
 	def test_order_by_descending(self, populated_engine):
 		"""Test ordering results descending"""
 		result = populated_engine.query.Person
 
-		ordered = result.order_by("age", descending=True)
+		ordered = list(result.order_by("age", descending=True))
 
-		assert len(ordered.nodes) == 2
+		assert len(ordered) == 2
 		# Alice (30) should come before Bob (25)
-		assert ordered.nodes[0]["name"] == "Alice"
-		assert ordered.nodes[1]["name"] == "Bob"
+		assert ordered[0]["name"] == "Alice"
+		assert ordered[1]["name"] == "Bob"
 
 	def test_remove_relations(self, populated_engine):
 		"""Test remove_relations removes only edges in the current result."""
@@ -331,9 +308,9 @@ class TestQueryResult: # pylint: disable=too-many-public-methods
 		result = engine.query.Item.order_by("priority")
 
 		# Items with None should come last
-		assert result.nodes[0]["name"] == "C"
-		assert result.nodes[1]["name"] == "A"
-		assert result.nodes[2]["name"] == "B"
+		assert result[0]["name"] == "C"
+		assert result[1]["name"] == "A"
+		assert result[2]["name"] == "B"
 
 	def test_count(self, populated_engine):
 		"""Test counting results"""
@@ -403,7 +380,7 @@ class TestQueryResult: # pylint: disable=too-many-public-methods
 
 		grouped = people.group_by("age")
 		assert set(grouped.keys()) == {25, 30}
-		assert grouped[30][0]["name"] == "Alice"
+		assert next(iter(grouped[30]))["name"] == "Alice"
 
 	def test_chained_queries(self, populated_engine):
 		"""Test chaining multiple query operations"""
@@ -413,8 +390,8 @@ class TestQueryResult: # pylint: disable=too-many-public-methods
 		          .outgoing("WORKS_AT")
 		          .order_by("founded"))
 
-		assert len(result.nodes) == 1
-		assert result.nodes[0].type_name == "Company"
+		assert len(result) == 1
+		assert result[0].type_name == "Company"
 
 		# Even more complex
 		complex_result = (populated_engine.query.Person
@@ -422,8 +399,7 @@ class TestQueryResult: # pylint: disable=too-many-public-methods
 		                  .outgoing("WORKS_AT")
 		                  .incoming("WORKS_AT")
 		                  .where("age > 20")
-		                  .order_by("age", descending=True)
-		                  .limit(2))
+		                  .limit(2, "age", True))
 
 		# This should get all people who work at the same company as Alice
 		assert len(complex_result.nodes) == 2

@@ -17,7 +17,8 @@ import statistics
 import sys
 import time
 from datetime import date
-from typing import Any, Dict, Optional
+from typing import Any
+from pympler import asizeof
 
 # ---------------------------------------------------------------------------
 # Try to import graphite – if it isn't editable, use installed
@@ -34,19 +35,9 @@ except ImportError:
 	)
 
 # ---------------------------------------------------------------------------
-# Optional memory measurement
-# ---------------------------------------------------------------------------
-try:
-	import psutil
-	HAVE_PSUTIL = True
-except ImportError:
-	HAVE_PSUTIL = False
-
-
-# ---------------------------------------------------------------------------
 # Benchmark helpers
 # ---------------------------------------------------------------------------
-def timed_call(func, *args, _iterations: int = 10, _setup=None, **kwargs) -> Dict[str, float]:
+def timed_call(func, *args, _iterations: int = 10, _setup=None, **kwargs) -> dict[str, float]:
 	"""
 	Time a callable over multiple iterations and return summary statistics.
 	Runs garbage collection before each iteration to reduce noise.
@@ -80,13 +71,6 @@ def human_bytes(num_bytes: float) -> str:
 	return f"{num_bytes:.1f} TB"
 
 
-def mem_usage() -> Optional[int]:
-	"""Return current process memory in bytes if psutil is available."""
-	if HAVE_PSUTIL:
-		return psutil.Process(os.getpid()).memory_info().rss
-	return None
-
-
 # ---------------------------------------------------------------------------
 # Data generation for benchmarks
 # ---------------------------------------------------------------------------
@@ -111,18 +95,20 @@ def create_benchmark_engine(
 			# Chain: Type0 -> Type1 -> Type2 ...
 			parent = f"NodeType{i-1}"
 		fields = [
-			         Field(f"int_field_{j}", DataType.INT) for j in range(3)
+			         (f"int_field_{j}", "int") for j in range(3)
 		         ] + [
-			         Field(f"str_field_{j}", DataType.STRING) for j in range(2)
+			         (f"str_field_{j}", "string") for j in range(2)
 		         ] + [
-			         Field("float_field", DataType.FLOAT),
-			         Field("date_field", DataType.DATE),
-			         Field("bool_field", DataType.BOOL),
+			         ("float_field", "float"),
+			         ("date_field", "date"),
+			         ("bool_field", "bool"),
 		         ]
-		engine.node_types[f"NodeType{i}"] = NodeType(
-			f"NodeType{i}",
-			fields,
-			engine.node_types.get(parent) if parent else None
+
+		engine.define_node(
+			f"node NodeType{i}" +
+			(f" from {parent}" if parent else "") +
+			"\n" +
+			"\n".join([f"{field[0]}: {field[1]}" for field in fields])
 		)
 
 	# Define relation types
@@ -130,18 +116,18 @@ def create_benchmark_engine(
 		from_type = f"NodeType{i % num_node_types}"
 		to_type = f"NodeType{(i+1) % num_node_types}"
 		fields = [
-			Field("weight", DataType.FLOAT),
-			Field("label", DataType.STRING),
+			("weight", "float"),
+			("label", "string"),
 		]
 		reverse = f"RevRel{i}" if i % 2 == 0 else None
-		bidirectional = i % 3 == 0
-		engine.relation_types[f"RelType{i}"] = RelationType(
-			f"RelType{i}", from_type, to_type, fields, reverse, bidirectional
+		bidirectional = not reverse and i % 3 == 0
+		engine.define_relation(
+			f"relation RelType{i}" +
+			(f" reverse RevRel{i}" if reverse else "") +
+			(" both" if bidirectional else "") +
+			f"\n{from_type}->{to_type}\n" +
+			"\n".join([f"{field[0]}: {field[1]}" for field in fields]),
 		)
-		if reverse:
-			engine.relation_types[reverse] = RelationType(
-				reverse, to_type, from_type, fields, f"RelType{i}", bidirectional
-			)
 
 	# Populate nodes
 	nodes = []
@@ -167,24 +153,18 @@ def create_benchmark_engine(
 		values["date_field"] = date_val.isoformat()  # stored as string, validated later
 		values["bool_field"] = bool_val
 
-		node = Node(f"NodeType{type_idx}", node_id, values, engine.node_types[f"NodeType{type_idx}"])
-		engine.nodes[node_id] = node
-		engine.node_by_type[f"NodeType{type_idx}"].append(node)
+		node = engine.create_node(f"NodeType{type_idx}", node_id, *values.values())
 		nodes.append(node)
 
 	# Populate relations
 	for r in range(num_relations):
 		rel_type_idx = r % num_relation_types
 		rel_type_name = f"RelType{rel_type_idx}"
-		rel_type = engine.relation_types[rel_type_name]
-		from_id = f"node_{r % num_nodes}"
-		to_id = f"node_{(r * 7 + 13) % num_nodes}"
+		rel_type_obj = engine.relation_types[rel_type_name]
+		from_id = next(iter(engine.node_by_type[rel_type_obj.from_type])).id
+		to_id = next(iter(engine.node_by_type[rel_type_obj.to_type])).id
 		values = {"weight": float(r % 100) / 100.0, "label": f"edge_{r}"}
-		relation = Relation(rel_type_name, from_id, to_id, values, rel_type)
-		engine.relations.append(relation)
-		engine.relations_by_type[rel_type_name].append(relation)
-		engine.relations_by_from[from_id].append(relation)
-		engine.relations_by_to[to_id].append(relation)
+		engine.create_relation(from_id, to_id, rel_type_name, *values.values())
 
 	return engine
 
@@ -198,7 +178,7 @@ class GraphiteBenchmarks:
 	def __init__(self, size: int = 5000, runs: int = 10):
 		self.size = size  # base scale factor for data
 		self.runs = runs
-		self.results: Dict[str, Any] = {}
+		self.results: dict[str, Any] = {}
 
 	def _run_benchmark(self, name: str, func, *args, _setup=None, **kwargs):
 		"""Execute a timed call and store the result."""
@@ -298,8 +278,8 @@ class GraphiteBenchmarks:
 				rel_type = next(iter(engine.relation_types))
 				rel_type_obj = engine.relation_types[rel_type]
 				# Just select valid node types
-				src_n = engine.node_by_type[rel_type_obj.from_type][0].id
-				tgt_n = engine.node_by_type[rel_type_obj.to_type][0].id
+				src_n = next(iter(engine.node_by_type[rel_type_obj.from_type])).id
+				tgt_n = next(iter(engine.node_by_type[rel_type_obj.to_type])).id
 				engine.create_relation(src_n, tgt_n, rel_type, float(i)/100.0, f"edge_{i}")
 
 		def setup_clean():
@@ -385,13 +365,9 @@ class GraphiteBenchmarks:
 		self._run_benchmark(f"query_union(n: 100 + {other_size})", lambda: limited.union(other))
 		self._run_benchmark(f"query_exclude(n: 100 + {other_size})", lambda: limited.exclude(other))
 		self._run_benchmark(f"query_intersect(n: 100 + {other_size})", lambda: limited.intersect(other))
-		self._run_benchmark(
-			f"query_distinct(n: 100 + {other_size})",
-			lambda: limited.union(other).distinct()
-		)
 
 		# 9) mutation: set
-		self._run_benchmark("query_set(n: 100)", limited.set, int_field_0=9999)
+		self._run_benchmark("query_set(n: 100)", limited.set_val, int_field_0=9999)
 
 		# 10) remove
 		remove_result = limited
@@ -476,26 +452,20 @@ class GraphiteBenchmarks:
 	# ---------- Memory ----------
 	def benchmark_memory(self):
 		"""Benchmark memory usage"""
-		if not HAVE_PSUTIL:
-			return
 		size = max(100, self.size)
-		mem_before = mem_usage()
 		engine = create_benchmark_engine(
 			num_node_types=3,
 			num_relation_types=2,
 			num_nodes=size,
 			num_relations=size // 2
 		)
-		mem_after = mem_usage()
+		engine_size = asizeof.asizeof(engine)
 		if engine:
 			engine = None
-		diff = mem_after - mem_before
 		self.results[f"memory_overhead(n: {size}, r: {size // 2})"] = {
-			"before": mem_before,
-			"after": mem_after,
-			"delta_bytes": diff,
-			"delta_human": human_bytes(diff),
-			"per_node_byte": diff / size if size else 0,
+			"size_bytes": engine_size,
+			"size_human": human_bytes(engine_size),
+			"per_node_byte": engine_size / size if size else 0,
 		}
 
 # ---------------------------------------------------------------------------
@@ -521,10 +491,10 @@ def generate_report(bench: GraphiteBenchmarks, fmt: str = "plain") -> str:
 				f"{name:<50} {mean_ms:8.3f} ms  (min:{stats['min']*1000:8.3f} ms, "
 				f"max:{stats['max']*1000:8.3f} ms, stdev:{stats['stdev']*1000:8.3f} ms)"
 			)
-		elif isinstance(stats, dict) and "delta_bytes" in stats:
+		elif isinstance(stats, dict) and "size_bytes" in stats:
 			lines.append(
-				f"{name:<50} {stats['delta_human']:>11}  ({stats['before']} -> {stats['after']}, "
-				f"{stats['delta_bytes']} B, per node: {stats['per_node_byte']} B)"
+				f"{name:<50} {stats['size_human']:>11}  ({stats['size_bytes']} B, per node: "
+				f"{stats['per_node_byte']} B)"
 			)
 		else:
 			# Memory or other info

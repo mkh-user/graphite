@@ -263,7 +263,7 @@ engine.query.Person.where("age > 18").intersect(
 Updates field values on all result nodes:
 
 ```python
-engine.query.Person.where("name == 'Alice'").set(age=30)
+engine.query.Person.where("name == 'Alice'").set_val(age=30)
 ```
 
 Changes are applied directly to the engine.

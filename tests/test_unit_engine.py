@@ -287,10 +287,11 @@ class TestGraphiteEngineDataManipulation:
 		}
 
 		# Check indexes
-		assert relation in engine.relations
-		assert relation in engine.relations_by_type["WORKS_AT"]
-		assert relation in engine.relations_by_from["person1"]
-		assert relation in engine.relations_by_to["company1"]
+		rel_id = id(relation)
+		assert rel_id in engine.relations
+		assert rel_id in engine.relations_by_type["WORKS_AT"]
+		assert rel_id in engine.relations_by_from["person1"]
+		assert rel_id in engine.relations_by_to["company1"]
 
 	def test_create_relation_bidirectional(self, clean_engine):
 		"""Test creating bidirectional relation"""
@@ -393,7 +394,7 @@ class TestGraphiteEngineQueryMethods:
 		# Get specific relation type
 		works_at_relations = engine.get_relations_from("person1", "WORKS_AT")
 		assert len(works_at_relations) == 1
-		assert works_at_relations[0].type_name == "WORKS_AT"
+		assert next(iter(works_at_relations)).type_name == "WORKS_AT"
 
 		# Non-existent node
 		with pytest.raises(NotFoundError):

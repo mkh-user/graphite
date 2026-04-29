@@ -51,7 +51,7 @@ class TestGraphiteBasicIntegration:
 		assert len(all_people) == 2
 
 		# Get Alice's workplace
-		alice_works = engine.get_relations_from("p1", "WORKS_AT")
+		alice_works = list(engine.get_relations_from("p1", "WORKS_AT"))
 		assert len(alice_works) == 1
 		assert alice_works[0].to_node == "c1"
 		assert alice_works[0]["position"] == "Engineer"
@@ -67,7 +67,7 @@ class TestGraphiteBasicIntegration:
 		                   .get())
 
 		assert len(young_employees) == 1
-		assert young_employees[0].id == "c1"
+		assert next(iter(young_employees)).id == "c1"
 
 	def test_inheritance_workflow(self, engine_with_inheritance):
 		"""Test inheritance workflow"""
@@ -152,8 +152,8 @@ class TestGraphiteBasicIntegration:
 		          .incoming("MANAGES")
 		          .order_by("age"))
 
-		assert len(result.nodes) >= 1
-		assert result.nodes[0]["name"] == "Alice"
+		assert len(result) >= 1
+		assert result[0]["name"] == "Alice"
 
 	def test_edge_cases(self, clean_engine):
 		"""Test various edge cases"""

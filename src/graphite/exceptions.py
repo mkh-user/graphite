@@ -1,7 +1,7 @@
 """
 Possible exceptions in Graphite
 """
-from typing import Any, Union
+from typing import Any
 
 from .types import Field, RelationType
 
@@ -127,7 +127,7 @@ class FileSizeError(GraphiteError):
 	:param file_size: size of given file (MB)
 	:param max_size: max valid size (MB)
 	"""
-	def __init__(self, file_size: float, max_size: Union[int, float]):
+	def __init__(self, file_size: float, max_size: int | float):
 		self.file_size = file_size
 		self.max_size = max_size
 		super().__init__(f"File is too large: {file_size:.1f}MB > {max_size:.1f}MB limit")

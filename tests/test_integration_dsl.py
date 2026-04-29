@@ -85,7 +85,7 @@ class TestDSLIntegration:
 		assert alice["age"] == 30
 
 		# Verify relations
-		alice_works_at = engine.get_relations_from("person1", "WORKS_AT")
+		alice_works_at = list(engine.get_relations_from("person1", "WORKS_AT"))
 		assert len(alice_works_at) == 1
 		assert alice_works_at[0].to_node == "company1"
 		assert alice_works_at[0]["position"] == "Engineer"
@@ -212,7 +212,7 @@ class TestDSLIntegration:
 		assert len(works_at_type.fields) == 4
 
 		# Verify relation
-		relation = engine.get_relations_from("p1", "WORKS_AT")[0]
+		relation = next(iter(engine.get_relations_from("p1", "WORKS_AT")))
 		assert relation["position"] == "Engineer"
 		assert relation["department"] == "Engineering"
 		assert relation["salary"] == 85000.50

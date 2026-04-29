@@ -184,7 +184,7 @@ class TestPersistenceIntegration:
 		assert user["name"] == "Alice O'Connor"
 		assert user["metadata"] == '{"key": "value"}'
 
-		relation = new_engine.get_relations_from("user1", "MEMBER_OF")[0]
+		relation = next(iter(new_engine.get_relations_from("user1", "MEMBER_OF")))
 		assert relation["role"] == "Administrator"
 		assert relation["permissions"] == '{"access": "full"}'
 

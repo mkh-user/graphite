@@ -5,7 +5,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import List, Optional
 
 class DataType(Enum):
 	"""
@@ -33,10 +32,10 @@ class NodeType:
 	Supports optional parent node type.
 	"""
 	name: str
-	fields: List[Field] = field(default_factory=list)
-	parent: Optional[NodeType] = None
+	fields: list[Field] = field(default_factory=list)
+	parent: NodeType | None = None
 
-	def get_all_fields(self) -> List[Field]:
+	def get_all_fields(self) -> list[Field]:
 		"""Get all fields including inherited ones"""
 		fields = self.fields.copy()
 		if self.parent:
@@ -57,8 +56,8 @@ class RelationType:
 	name: str
 	from_type: str
 	to_type: str
-	fields: List[Field] = field(default_factory=list)
-	reverse_name: Optional[str] = None
+	fields: list[Field] = field(default_factory=list)
+	reverse_name: str | None = None
 	is_bidirectional: bool = False
 
 	def __hash__(self):

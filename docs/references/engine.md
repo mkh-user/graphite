@@ -85,7 +85,7 @@ Creates reverse relation too when relation type is bidirectional (`both`)
 Get node by ID
 `NotFoundError` for invalid IDs
 
-## `get_nodes_of_type(node_type: str, with_subtypes: bool = True) -> List[Node]`
+## `get_nodes_of_type(node_type: str, with_subtypes: bool = True) -> set[Node]`
 
 Get all nodes of a specific type
 
@@ -96,14 +96,14 @@ returns a list of nodes
 > **Note:** Using this function is not recommended directly in most cases, use `engine.query.node_type.nodes()` instead
 > (for example `engine.query.Person.nodes()`)
 
-## `get_relations_from(node_id: str, rel_type: str = None) -> List[Relation]`
+## `get_relations_from(node_id: str, rel_type: str = None) -> set[Relation]`
 
 Get relations from a node
 
 Returns empty list for invalid types
 when `rel_type` is not `None`, filters relations to given type
 
-## `get_relations_to(node_id: str, rel_type: str = None) -> List[Relation]`
+## `get_relations_to(node_id: str, rel_type: str = None) -> set[Relation]`
 
 Get relations to a node
 
@@ -188,7 +188,7 @@ Clears all data, including:
 * Relations
 And all indexes used to store these items.
 
-## `stats() -> Dict[str, Any]`
+## `stats() -> dict[str, Any]`
 
 Get database statistics
 

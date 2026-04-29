@@ -4,7 +4,7 @@ Parser for Graphite DSL
 import re
 import warnings
 from datetime import datetime
-from typing import Any, List, Optional, Tuple
+from typing import Any
 
 from .exceptions import (
 	DateParseError, FieldError, GraphiteError, NotFoundError, ParseError,
@@ -107,7 +107,7 @@ class GraphiteParser:
 		return value
 
 	@staticmethod
-	def parse_node_definition(definition: str) -> Tuple[str, List[Field], str]:
+	def parse_node_definition(definition: str) -> tuple[str, list[Field], str]:
 		"""
 		Parse node type definition, for example:\n
 		'''\n
@@ -198,7 +198,7 @@ class GraphiteParser:
 	@staticmethod
 	def parse_relation_definition(
 		definition: str
-	) -> Tuple[str, str, str, List[Field], Optional[str], bool]:
+	) -> tuple[str, str, str, list[Field], str | None, bool]:
 		"""
 		Parse relation definition
 
@@ -314,7 +314,7 @@ class GraphiteParser:
 		return relation_name, from_type, to_type, fields, reverse_name, is_bidirectional
 
 	@staticmethod
-	def parse_node_instance(line: str) -> Tuple[str, str, List[Any]]:
+	def parse_node_instance(line: str) -> tuple[str, str, list[Any]]:
 		"""
 		Parse node instance: 'User, user_1, "Joe Doe", 32, "joe4030"'
 
