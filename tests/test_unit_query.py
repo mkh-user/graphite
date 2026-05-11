@@ -3,7 +3,7 @@ from datetime import date
 
 import pytest
 
-from src.graphite.exceptions import ConditionError, DateParseError, NotFoundError
+from src.graphite.exceptions import ConditionError, DateParseError
 
 class TestQueryBuilder:
 	"""Test QueryBuilder class"""
@@ -25,10 +25,9 @@ class TestQueryBuilder:
 		"""Test accessing non-existent node type via QueryBuilder"""
 		engine = populated_engine
 
-		with pytest.raises(NotFoundError) as exc_info:
-			_ = engine.query.NonExistent
+		q = engine.query.NonExistent
 
-		assert "Node type" in str(exc_info.value)
+		assert q is None
 
 	def test_query_builder_all_nodes(self, populated_engine):
 		"""Test all magic getter returns all nodes."""

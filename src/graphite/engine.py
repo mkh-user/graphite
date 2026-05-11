@@ -30,7 +30,7 @@ class GraphiteEngine:
 		self.relation_types: dict[str, RelationType] = {}
 		self.nodes: dict[str, Node] = {}
 		self.relations: dict[int, Relation] = {}
-		self.node_by_type: dict[str, set[Node]] = defaultdict(set)
+		self.node_by_type: dict[str, set[str]] = defaultdict(set)
 		self.relations_by_type: dict[str, set[int]] = defaultdict(set)
 		self.relations_by_from: dict[str, set[int]] = defaultdict(set)
 		self.relations_by_to: dict[str, set[int]] = defaultdict(set)
@@ -143,7 +143,7 @@ class GraphiteEngine:
 
 		new_node = Node(node_type, node_id, node_values, node_type_obj)
 		self.nodes[node_id] = new_node
-		self.node_by_type[node_type].add(new_node)
+		self.node_by_type[node_type].add(node_id)
 		return new_node
 
 	def create_relation(self, from_id: str, to_id: str, rel_type: str, *values) -> Relation:
@@ -283,6 +283,9 @@ class GraphiteEngine:
 
 		:except NotFoundError: if `node_type` not defined
 		"""
+		return {self.nodes[n] for n in self._get_nodes_of_type_ids(node_type, with_subtypes)}
+
+	def _get_nodes_of_type_ids(self, node_type: str, with_subtypes: bool = True) -> set[str]:
 		if node_type not in self.node_types:
 			raise NotFoundError(
 				"Node type",
@@ -293,7 +296,7 @@ class GraphiteEngine:
 		if with_subtypes:
 			for ntype in self.node_types.values():
 				if ntype.parent and ntype.parent.name == node_type:
-					nodes.update(self.get_nodes_of_type(ntype.name, True))
+					nodes.update(self._get_nodes_of_type_ids(ntype.name, True))
 		return nodes
 
 	def get_relations_from(self, node_id: str, rel_type: str = None) -> set[Relation]:
@@ -435,7 +438,7 @@ class GraphiteEngine:
 				relations_to_remove.add(rel)
 
 			n = self.nodes.pop(node)
-			self.node_by_type[n.type_name].discard(n)
+			self.node_by_type[n.type_name].discard(node)
 
 		self.remove_relations({self.relations[rel] for rel in relations_to_remove})
 
@@ -855,8 +858,8 @@ class GraphiteEngine:
 		self.relations_by_from.clear()
 		self.relations_by_to.clear()
 
-		for node_instance in self.nodes.values():
-			self.node_by_type[node_instance.type_name].add(node_instance)
+		for node_id, node_instance in self.nodes.items():
+			self.node_by_type[node_instance.type_name].add(node_id)
 
 		for rel_id, rel in self.relations.items():
 			self.relations_by_type[rel.type_name].add(rel_id)

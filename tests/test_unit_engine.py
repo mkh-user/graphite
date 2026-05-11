@@ -189,7 +189,7 @@ class TestGraphiteEngineDataManipulation:
 			"email": "alice@email.com"
 		}
 		assert "person1" in engine.nodes
-		assert node in engine.node_by_type["Person"]
+		assert "person1" in engine.node_by_type["Person"]
 
 	def test_create_node_with_date(self, clean_engine):
 		"""Test creating a node with date field"""

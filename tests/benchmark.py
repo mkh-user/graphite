@@ -26,13 +26,9 @@ from pympler import asizeof
 try:
 	# Add parent directory to path (assumes benchmark is inside the package or next to it)
 	sys.path.insert(0, os.path.abspath('..'))
-	from src.graphite import(
-		DataType, Field, NodeType, RelationType, Node, Relation, QueryBuilder, GraphiteEngine
-	)
+	from src.graphite import DataType, Field, NodeType, QueryBuilder, GraphiteEngine
 except ImportError:
-	from graphite import (
-		DataType, Field, NodeType, RelationType, Node, Relation, QueryBuilder, GraphiteEngine
-	)
+	from graphite import DataType, Field, NodeType, QueryBuilder, GraphiteEngine
 
 # ---------------------------------------------------------------------------
 # Benchmark helpers
@@ -161,8 +157,8 @@ def create_benchmark_engine(
 		rel_type_idx = r % num_relation_types
 		rel_type_name = f"RelType{rel_type_idx}"
 		rel_type_obj = engine.relation_types[rel_type_name]
-		from_id = next(iter(engine.node_by_type[rel_type_obj.from_type])).id
-		to_id = next(iter(engine.node_by_type[rel_type_obj.to_type])).id
+		from_id = next(iter(engine.node_by_type[rel_type_obj.from_type]))
+		to_id = next(iter(engine.node_by_type[rel_type_obj.to_type]))
 		values = {"weight": float(r % 100) / 100.0, "label": f"edge_{r}"}
 		engine.create_relation(from_id, to_id, rel_type_name, *values.values())
 
@@ -278,8 +274,8 @@ class GraphiteBenchmarks:
 				rel_type = next(iter(engine.relation_types))
 				rel_type_obj = engine.relation_types[rel_type]
 				# Just select valid node types
-				src_n = next(iter(engine.node_by_type[rel_type_obj.from_type])).id
-				tgt_n = next(iter(engine.node_by_type[rel_type_obj.to_type])).id
+				src_n = next(iter(engine.node_by_type[rel_type_obj.from_type]))
+				tgt_n = next(iter(engine.node_by_type[rel_type_obj.to_type]))
 				engine.create_relation(src_n, tgt_n, rel_type, float(i)/100.0, f"edge_{i}")
 
 		def setup_clean():

@@ -2,10 +2,10 @@
 Query engine and object for Graphite
 """
 from collections import defaultdict
+from collections.abc import Callable
 from datetime import date, datetime
 from functools import reduce
-from typing import TYPE_CHECKING, Any
-from collections.abc import Callable
+from typing import Any, TYPE_CHECKING
 
 from typing_extensions import deprecated
 
