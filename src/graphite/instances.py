@@ -55,7 +55,7 @@ class Node:
 	def __eq__(self, other) -> bool:
 		if not isinstance(other, Node):
 			return NotImplemented
-		return self.id == other.type_name, other.id
+		return self.id == other.id
 
 @dataclass
 class Relation:
