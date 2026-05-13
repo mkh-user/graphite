@@ -1,1 +1,1 @@
-pytest>=8.4.2
+typing_extensions~=4.15.0

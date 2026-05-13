@@ -4,6 +4,7 @@ Configuration and fixtures for Graphite tests
 import os
 import sys
 import tempfile
+from datetime import date
 
 import pytest
 
@@ -71,12 +72,12 @@ def populated_engine():
 	# Create nodes
 	engine.create_node("Person", "person1", "Alice", 30, "alice@email.com")
 	engine.create_node("Person", "person2", "Bob", 25, "bob@email.com")
-	engine.create_node("Company", "company1", "TechCorp", "2020-01-01", 500)
+	engine.create_node("Company", "company1", "TechCorp", date(2020, 1, 1), 500)
 	engine.create_node("Project", "project1", "Alpha", 100000.50, True)
 
 	# Create relations
-	engine.create_relation("person1", "company1", "WORKS_AT", "Engineer", "2021-03-15")
-	engine.create_relation("person2", "company1", "WORKS_AT", "Manager", "2020-06-01")
+	engine.create_relation("person1", "company1", "WORKS_AT", "Engineer", date(2021, 3, 15))
+	engine.create_relation("person2", "company1", "WORKS_AT", "Manager", date(2020, 6, 1))
 	engine.create_relation("person1", "project1", "MANAGES", "Lead")
 
 	return engine
@@ -122,10 +123,11 @@ def engine_with_inheritance():
     """
 	)
 
-	engine.create_node("Entity", "ent1", "base_entity", "2023-01-01")
+	engine.create_node("Entity", "ent1", "base_entity", "2023-01-01",
+		parse_and_validate=True)
 	engine.create_node("User", "user1", "user_entity", "2023-02-01",
-		"john", "pass123", True)
+		"john", "pass123", True, parse_and_validate=True)
 	engine.create_node("Admin",  "admin1", "admin_entity", "2023-03-01",
-		"admin", "admin123", True, "all")
+		"admin", "admin123", True, "all", parse_and_validate=True)
 
 	return engine

@@ -67,6 +67,14 @@ def human_bytes(num_bytes: float) -> str:
 	return f"{num_bytes:.1f} TB"
 
 
+def n(num: float) -> str:
+	if num >= 1000000.0:
+		return f"{num / 1000000.0:.0}M"
+	if num >= 1000.0:
+		return f"{num / 1000.0:.0f}K"
+	return str(num)
+
+
 # ---------------------------------------------------------------------------
 # Data generation for benchmarks
 # ---------------------------------------------------------------------------
@@ -127,17 +135,17 @@ def create_benchmark_engine(
 
 	# Populate nodes
 	nodes = []
-	for n in range(num_nodes):
-		type_idx = n % num_node_types
-		node_id = f"node_{n}"
+	for node in range(num_nodes):
+		type_idx = node % num_node_types
+		node_id = f"node_{node}"
 		# Generate some consistent 'random' values
-		int_vals = [(n * 31 + j) % 1000 for j in range(3)]
-		str_vals = [f"str_{n}_{j}" for j in range(2)]
-		float_val = float(n % 100) / 10.0
+		int_vals = [(node * 31 + j) % 1000 for j in range(3)]
+		str_vals = [f"str_{node}_{j}" for j in range(2)]
+		float_val = float(node % 100) / 10.0
 		# Date as days from 2020-01-01
-		date_val = date(2020, 1, 1).toordinal() + n
+		date_val = date(2020, 1, 1).toordinal() + node
 		date_val = date.fromordinal(date_val)
-		bool_val = n % 2 == 0
+		bool_val = node % 2 == 0
 
 		values: dict[str, Any] = {
 			f"int_field_{j}": int_vals[j] for j in range(3)
@@ -211,7 +219,7 @@ class GraphiteBenchmarks:
 					definition = f"node node_type_{i}\n{fields}"
 				eng.define_node(definition)
 
-		self._run_benchmark(f"schema_define_node_types(nt: {n_types})", define_node_types)
+		self._run_benchmark(f"schema_define_node_types(nt: {n(n_types)})", define_node_types)
 
 		# Relation types
 		def define_relation_types():
@@ -226,7 +234,7 @@ class GraphiteBenchmarks:
 				eng.define_relation(definition)
 
 		self._run_benchmark(
-			f"schema_define_relation_types (rt: {max(1, n_types // 2)})",
+			f"schema_define_relation_types (rt: {n(max(1, n_types // 2))})",
 			define_relation_types
 		)
 
@@ -257,7 +265,7 @@ class GraphiteBenchmarks:
 			engine.relations.clear()
 			gc.collect()
 
-		self._run_benchmark(f"node_creation(n: {self.size})", create_many_nodes, _setup=setup_clean)
+		self._run_benchmark(f"node_creation(n: {n(self.size)})", create_many_nodes, _setup=setup_clean)
 
 	# ---------- Relation creation ----------
 	def benchmark_relation_creation(self):
@@ -285,7 +293,7 @@ class GraphiteBenchmarks:
 			engine.relations_by_to.clear()
 			gc.collect()
 
-		self._run_benchmark(f"relation_creation(r: {size})", create_relations, _setup=setup_clean)
+		self._run_benchmark(f"relation_creation(r: {n(size)})", create_relations, _setup=setup_clean)
 
 	# ---------- Queries ----------
 	def benchmark_queries(self):
@@ -304,11 +312,11 @@ class GraphiteBenchmarks:
 
 		# 1) get_node
 		sample_id = "node_0"
-		self._run_benchmark(f"get_node(n: {self.size})", engine.get_node, sample_id)
+		self._run_benchmark(f"get_node(n: {n(self.size)})", engine.get_node, sample_id)
 
 		# 2) get_nodes_of_type (with subtypes)
 		self._run_benchmark(
-			f"get_nodes_of_type(n: {self.size}, with subtypes)",
+			f"get_nodes_of_type(n: {n(self.size)}, with subtypes)",
 			engine.get_nodes_of_type,
 			"NodeType0",
 			True
@@ -317,32 +325,40 @@ class GraphiteBenchmarks:
 		# 3) get_relations_from / to
 		sample_node = engine.nodes[f"node_{size//2}"]
 		self._run_benchmark(
-			f"query_get_relations_from(n: {self.size})",
+			f"query_get_relations_from(n: {n(self.size)})",
 			engine.get_relations_from,
 			sample_node.id
 		)
 		self._run_benchmark(
-			f"query_get_relations_to(n: {self.size})",
+			f"query_get_relations_to(n: {n(self.size)})",
 			engine.get_relations_to,
 			sample_node.id
 		)
 
 		# 4) where (string condition)
 		self._run_benchmark(
-			f"query_where_string(n: {self.size})",
+			f"query_where_string(n: {n(self.size)})",
 			lambda: all_nodes_result.where("int_field_0 > 500")
 		)
 
 		# 5) where (lambda)
 		self._run_benchmark(
-			f"query_where_lambda(n: {self.size})",
-			lambda: all_nodes_result.where(lambda n: n.get("int_field_0") > 500)
+			f"query_where_lambda(n: {n(self.size)})",
+			lambda: all_nodes_result.where(lambda node: node.get("int_field_0") > 500)
 		)
 
-		# 6) traverse (outgoing)
+		# 6) traverse
 		self._run_benchmark(
-			f"query_outgoing(n: {self.size}, typed)",
+			f"query_outgoing(n: {n(self.size)}, typed)",
 			lambda: all_nodes_result.outgoing("RelType0")
+		)
+		self._run_benchmark(
+			f"query_incoming(n: {n(self.size)}, typed)",
+			lambda: all_nodes_result.incoming("RelType0")
+		)
+		self._run_benchmark(
+			f"query_both(n: {n(self.size)}, typed)",
+			lambda: all_nodes_result.both("RelType0")
 		)
 
 		# 7) aggregation: count, sum, avg, min, max, group_by, order_by
@@ -357,7 +373,7 @@ class GraphiteBenchmarks:
 
 		# 8) set operation
 		other = query.all().where("int_field_0 < 200")
-		other_size = other.count()
+		other_size = n(other.count())
 		self._run_benchmark(f"query_union(n: 100 + {other_size})", lambda: limited.union(other))
 		self._run_benchmark(f"query_exclude(n: 100 + {other_size})", lambda: limited.exclude(other))
 		self._run_benchmark(f"query_intersect(n: 100 + {other_size})", lambda: limited.intersect(other))
@@ -368,6 +384,9 @@ class GraphiteBenchmarks:
 		# 10) remove
 		remove_result = limited
 		self._run_benchmark("query_remove_node(n: 100)", remove_result.remove)
+
+		# 11) validate
+		self._run_benchmark(f"query_validate(n: {other_size})", other.validate)
 
 	# ---------- Serialization ----------
 	def benchmark_serialization(self):
@@ -382,7 +401,7 @@ class GraphiteBenchmarks:
 		filename = "_benchmark_temp.json"
 
 		# Save
-		self._run_benchmark(f"serialization_save(n: {size}, r: {size // 2})", engine.save, filename)
+		self._run_benchmark(f"serialization_save(n: {n(size)}, r: {n(size // 2)})", engine.save, filename)
 
 		# Load (safe)
 		def load_safe():
@@ -390,7 +409,7 @@ class GraphiteBenchmarks:
 			eng.load_safe(filename, max_size_mb=500, validate_schema=False)
 			return eng
 
-		self._run_benchmark(f"serialization_load(n: {size}, r: {size // 2}, validate off)", load_safe)
+		self._run_benchmark(f"serialization_load(n: {n(size)}, r: {n(size // 2)}, validate off)", load_safe)
 
 		# Load (safe + validation)
 		def load_safe_validate():
@@ -399,7 +418,7 @@ class GraphiteBenchmarks:
 			return eng
 
 		self._run_benchmark(
-			f"serialization_load(n: {size}, r: {size // 2}, validate on)", load_safe_validate
+			f"serialization_load(n: {n(size)}, r: {n(size // 2)}, validate on)", load_safe_validate
 		)
 
 		# Load (unsafe/low-level)
@@ -408,7 +427,7 @@ class GraphiteBenchmarks:
 			eng.load(filename, safe_mode=False)
 			return eng
 
-		self._run_benchmark(f"serialization_load(n: {size}, r: {size // 2}, unsafe mode)", load_unsafe)
+		self._run_benchmark(f"serialization_load(n: {n(size)}, r: {n(size // 2)}, unsafe mode)", load_unsafe)
 
 		# Cleanup
 		try:
@@ -458,10 +477,10 @@ class GraphiteBenchmarks:
 		engine_size = asizeof.asizeof(engine)
 		if engine:
 			engine = None
-		self.results[f"memory_overhead(n: {size}, r: {size // 2})"] = {
+		self.results[f"memory_overhead(n: {n(size)}, r: {n(size // 2)})"] = {
 			"size_bytes": engine_size,
 			"size_human": human_bytes(engine_size),
-			"per_node_byte": engine_size / size if size else 0,
+			"per_node_byte": round(engine_size / size if size else 0),
 		}
 
 # ---------------------------------------------------------------------------
@@ -470,33 +489,38 @@ class GraphiteBenchmarks:
 def generate_report(bench: GraphiteBenchmarks, fmt: str = "plain") -> str:
 	"""Format benchmark results as a string."""
 	lines = []
-	width = 60
+	width = 110
 	lines.append("=" * width)
-	lines.append("GRAPHITE BENCHMARK REPORT")
-	lines.append(f"Size factor: {bench.size}, Runs: {bench.runs}")
+	lines.append(" " * 40 + "GRAPHITE BENCHMARK REPORT")
+	lines.append(" " * 40 + f"Size factor: {n(bench.size)}, Runs: {bench.runs}")
 	lines.append("=" * width)
+	lines.append("| Metric " + " " * 44 + "| Avg         | Min         | Max         | StDev       |")
+	lines.append("|" + "-" * 52 + "|" + ("-" * 13 + "|") * 4)
 
 	if fmt == "json":
 		return json.dumps(bench.results, indent=2, default=str)
 
+	memory_info = None
 	for name, stats in sorted(bench.results.items()):
 		if isinstance(stats, dict) and "mean" in stats:
 			mean_s = stats["mean"]
 			mean_ms = mean_s * 1000
 			lines.append(
-				f"{name:<50} {mean_ms:8.3f} ms  (min:{stats['min']*1000:8.3f} ms, "
-				f"max:{stats['max']*1000:8.3f} ms, stdev:{stats['stdev']*1000:8.3f} ms)"
+				f"| {name:<50} | {mean_ms:8.3f} ms | {stats['min']*1000:8.3f} ms | "
+				f"{stats['max']*1000:8.3f} ms | {stats['stdev']*1000:8.3f} ms |"
 			)
 		elif isinstance(stats, dict) and "size_bytes" in stats:
-			lines.append(
-				f"{name:<50} {stats['size_human']:>11}  ({stats['size_bytes']} B, per node: "
-				f"{stats['per_node_byte']} B)"
+			"Memory overhead: 142.3 KB (total: 145728 B, per node: 1457.28 B)"
+			memory_info = (
+				f"Memory overhead: {stats['size_human']} (total: {stats['size_bytes']} B, "
+				f"per node: {stats['per_node_byte']:.3f} B)"
 			)
 		else:
-			# Memory or other info
-			lines.append(f"{name}: {stats}")
+			# Other info
+			lines.append(f"| {name:<50} | {stats} |")
+	if memory_info:
+		lines.append(memory_info)
 
-	lines.append("=" * width)
 	return "\n".join(lines)
 
 
@@ -509,8 +533,8 @@ def main():
 		description="Advanced benchmark suite for Graphite embedded graph database"
 	)
 	parser.add_argument(
-		"--size", type=int, default=5000,
-		help="Base number of elements to generate (nodes, relations). Default: 5000"
+		"--size", type=int, default=100000,
+		help="Base number of elements to generate (nodes, relations). Default: 10000"
 	)
 	parser.add_argument(
 		"--runs", type=int, default=10,

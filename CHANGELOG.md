@@ -7,9 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [unreleased]
 
+### Added
+
+- Add support for `'` wrapped strings in DSL and queries
+- Cache field list (with base types) for each node type
+
+### Changed
+
+- Parse and validate values for `create_node()` needs set `parse_and_validate` to `True`
+- Return relation objects instead of IDs in `query.edges`
+- Scale-up benchmark default size factor to 100K
+
 ### Fixed
 
 - Fix nodes' `__eq__` function
+- Fix low speed of `get_nodes_of_type()`
+- Keep relation indexes valid at `remove_nodes()`
+- Improve parsing speed
+- **Query:** Fixed reparsing `where()` condition string for each node
+- **Query:** Replace outdated value parser in `where()` with standard parser
+- Fix project requirements
+
+### Removed
+
+- **Query:** Auto validate for `traverse()`, `outgoing()`, `incoming()`, `both()`
+- Unused fields in save file
 
 ## [0.4] - 2026-04-29
 

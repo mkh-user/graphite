@@ -27,6 +27,8 @@ class GraphiteParser:
 
 		:return: Parsed and validated value
 		"""
+		if isinstance(value, str) and field.dtype == DataType.STRING:
+			return value
 		value = self.parse_value(value)
 		return self.validate_field_value(value, field)
 
@@ -47,22 +49,22 @@ class GraphiteParser:
 			return None
 		try:
 			if field.dtype == DataType.STRING:
-				value = str(value)
-			elif field.dtype == DataType.INT:
-				value = int(value)
-			elif field.dtype == DataType.DATE:
+				return str(value)
+			if field.dtype == DataType.INT:
+				return int(value)
+			if field.dtype == DataType.DATE:
 				if isinstance(value, datetime):
-					value = value.date()
-				elif isinstance(value, str):
-					value = datetime.strptime(value, "%Y-%m-%d").date()
-			elif field.dtype == DataType.FLOAT:
-				value = float(value)
-			elif field.dtype == DataType.BOOL:
+					return value.date()
 				if isinstance(value, str):
-					value = value.lower() == "true"
+					return datetime.strptime(value, "%Y-%m-%d").date()
+			if field.dtype == DataType.FLOAT:
+				return float(value)
+			if field.dtype == DataType.BOOL:
+				if isinstance(value, str):
+					return value.lower() == "true"
 				else:
-					value = bool(value)
-			elif field.dtype not in DataType:
+					return bool(value)
+			if field.dtype not in DataType:
 				raise NotFoundError(
 					"Data type",
 					str(field.dtype)
@@ -91,7 +93,8 @@ class GraphiteParser:
 		if not isinstance(value, str):
 			return value
 		value = value.strip()
-		if value.startswith('"') and value.endswith('"'):
+		if ((value.startswith('"') and value.endswith('"'))
+			or (value.startswith("'") and value.endswith("'"))):
 			return value[1:-1]
 		if value.replace('-', '').isdigit() and value.count("-") == 2:  # Date-like
 			try:

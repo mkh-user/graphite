@@ -145,7 +145,7 @@ class TestGraphiteBasicIntegration:
 		# and manage projects with budget over 50000
 		result = (engine.query.Person
 		          .outgoing("WORKS_AT")
-		          .where("founded < '2021-01-01'")
+		          .where("founded < 2021-01-01")
 		          .incoming("WORKS_AT")
 		          .outgoing("MANAGES")
 		          .where("budget > 50000")
@@ -180,7 +180,7 @@ class TestGraphiteBasicIntegration:
 
 		engine.create_node(
 			"AllTypes", "all1",
-			"text", 42, 3.14, "2023-01-01", True
+			"text", 42, 3.14, "2023-01-01", True, parse_and_validate=True
 		)
 
 		node = engine.get_node("all1")

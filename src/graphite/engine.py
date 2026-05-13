@@ -107,13 +107,14 @@ class GraphiteEngine:
 
 	# =============== DATA MANIPULATION ===============
 
-	def create_node(self, node_type: str, node_id: str, *values) -> Node:
+	def create_node(self, node_type: str, node_id: str, *values, parse_and_validate: bool = False) -> Node:
 		"""
 		Create a node instance
 
 		:param node_type: Node type
 		:param node_id: Node ID
 		:param values: Values for node fields
+		:param parse_and_validate: Whatever to parse and validate field values or not
 
 		:return: Node instance
 
@@ -138,8 +139,12 @@ class GraphiteEngine:
 
 		# Create values dictionary
 		node_values = {}
-		for current_field, value in zip(all_fields, values):
-			node_values[current_field.name] = self.parser.parse_field_value(value, current_field)
+		if parse_and_validate:
+			for current_field, value in zip(all_fields, values):
+				node_values[current_field.name] = self.parser.parse_field_value(value, current_field)
+		else:
+			for current_field, value in zip(all_fields, values):
+				node_values[current_field.name] = value
 
 		new_node = Node(node_type, node_id, node_values, node_type_obj)
 		self.nodes[node_id] = new_node
@@ -294,10 +299,20 @@ class GraphiteEngine:
 
 		nodes = self.node_by_type[node_type]
 		if with_subtypes:
-			for ntype in self.node_types.values():
-				if ntype.parent and ntype.parent.name == node_type:
-					nodes.update(self._get_nodes_of_type_ids(ntype.name, True))
+			nodes.update(*[self._get_nodes_of_type_ids(ntype, True)
+				for ntype in self._get_subtypes(node_type)])
 		return nodes
+
+	def _get_subtypes(self, node_type: str) -> set[str]:
+		result: set[str] = set()
+		for ntype in self.node_types.values():
+			current = ntype
+			while current.parent:
+				if current.parent.name == node_type:
+					result.add(ntype.name)
+					break
+				current = current.parent
+		return result
 
 	def get_relations_from(self, node_id: str, rel_type: str = None) -> set[Relation]:
 		"""
@@ -421,26 +436,27 @@ class GraphiteEngine:
 		elif isinstance(nodes, (str, Node)):
 			nodes = {nodes}
 
+		nodes = {n if isinstance(n, str) else n.id for n in nodes}
+
+		missing = {nid for nid in nodes if nid not in self.nodes}
+		if missing:
+			raise NotFoundError("Node", f"{next(iter(missing))} (and {len(missing) - 1} others)")
+
+		relations_to_remove = self._collect_relations(nodes)
+		self.remove_relations(relations_to_remove)
+
 		for node in nodes:
-			if isinstance(node, Node):
-				nodes.remove(node)
-				nodes.add(node.id)
-				node = node.id
-			if node not in self.nodes:
-				raise NotFoundError("Node", node)
-
-		relations_to_remove: set[int] = set()
-
-		for node in nodes:
-			for rel in self.relations_by_from[node]:
-				relations_to_remove.add(rel)
-			for rel in self.relations_by_to[node]:
-				relations_to_remove.add(rel)
-
 			n = self.nodes.pop(node)
 			self.node_by_type[n.type_name].discard(node)
+			del self.relations_by_to[node]
+			del self.relations_by_from[node]
 
-		self.remove_relations({self.relations[rel] for rel in relations_to_remove})
+	def _collect_relations(self, nodes: set[str]) -> set[Relation]:
+		relations: set[int] = set()
+		for node in nodes:
+			relations.update(self.relations_by_from[node])
+			relations.update(self.relations_by_to[node])
+		return {self.relations[r] for r in relations}
 
 	def remove_relations(self, relations: Relation | set[Relation] | list[Relation]) -> None:
 		"""
@@ -561,7 +577,7 @@ class GraphiteEngine:
 			else:
 				# Node instance
 				node_type, node_id, values = self.parser.parse_node_instance(line)
-				self.create_node(node_type, node_id, *values)
+				self.create_node(node_type, node_id, *values, parse_and_validate=True)
 				i += 1
 
 	@deprecated("Use parse() instead")
@@ -747,7 +763,7 @@ class GraphiteEngine:
 			else:
 				# Convert from dict if needed
 				fields: list[Field] = list(map(
-					lambda fld: Field(fld["name"], fld["dtype"]),
+					lambda fld: Field(fld.name, fld.dtype),
 					nt_dict.get("fields", [])
 				))
 				nt = NodeType(

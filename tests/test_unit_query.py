@@ -3,7 +3,7 @@ from datetime import date
 
 import pytest
 
-from src.graphite.exceptions import ConditionError, DateParseError
+from src.graphite.exceptions import ConditionError
 
 class TestQueryBuilder:
 	"""Test QueryBuilder class"""
@@ -133,14 +133,14 @@ class TestQueryResult: # pylint: disable=too-many-public-methods
 		active_projects = populated_engine.query.Project.where("active = true")
 		assert active_projects.count() == 1
 
-		founded_company = populated_engine.query.Company.where('founded = "2020-01-01"')
+		founded_company = populated_engine.query.Company.where('founded = 2020-01-01')
 		assert founded_company.count() == 1
 		assert founded_company.first()["founded"] == date(2020, 1, 1)
 
 	def test_where_date_parse_error(self, populated_engine):
 		"""Test invalid date string raises DateParseError."""
-		with pytest.raises(DateParseError):
-			populated_engine.query.Company.where('founded = "01/01/2020"')
+		result = populated_engine.query.Company.where('founded = 01/01/2020')
+		assert len(result.nodes) == 0
 
 	def test_traverse_outgoing(self, populated_engine):
 		"""Test traversing outgoing relations"""
@@ -155,7 +155,7 @@ class TestQueryResult: # pylint: disable=too-many-public-methods
 
 		# Check edges were captured
 		assert len(works_at_result.edges) == 1
-		assert populated_engine.relations[next(iter(works_at_result.edges))].type_name == "WORKS_AT"
+		assert next(iter(works_at_result.edges)).type_name == "WORKS_AT"
 
 	def test_outgoing_method(self, populated_engine):
 		"""Test outgoing shortcut method"""

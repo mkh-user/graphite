@@ -203,7 +203,7 @@ class TestGraphiteEngineDataManipulation:
         """
 		)
 
-		node = engine.create_node("Event", "event1", "Conference", "2023-12-01")
+		node = engine.create_node("Event", "event1", "Conference", "2023-12-01", parse_and_validate=True)
 
 		assert node.id == "event1"
 		# Date should be converted to date object
@@ -223,7 +223,7 @@ class TestGraphiteEngineDataManipulation:
 		)
 
 		with pytest.raises(FieldError):
-			engine.create_node("Event", "event1", "Conference", "invalid-date")
+			engine.create_node("Event", "event1", "Conference", "invalid-date", parse_and_validate=True)
 
 	def test_create_node_wrong_property_count(self, clean_engine):
 		"""Test creating node with wrong number of properties"""

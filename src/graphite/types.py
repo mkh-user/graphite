@@ -34,12 +34,16 @@ class NodeType:
 	name: str
 	fields: list[Field] = field(default_factory=list)
 	parent: NodeType | None = None
+	all_fields_cache: list[Field] | None = None
 
 	def get_all_fields(self) -> list[Field]:
 		"""Get all fields including inherited ones"""
+		if self.all_fields_cache is not None:
+			return self.all_fields_cache
 		fields = self.fields.copy()
 		if self.parent:
 			fields = self.parent.get_all_fields() + fields
+		self.all_fields_cache = fields
 		return fields
 
 	def __hash__(self):

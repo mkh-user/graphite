@@ -42,7 +42,7 @@ class TestGraphiteJSONEncoder:
 
 		assert result["__graphite_type__"] == "Field"
 		assert result["name"] == "name"
-		assert result["dtype"] == "string"
+		assert result["dtype"] == DataType.STRING
 
 	def test_encode_node_type(self):
 		"""Test encoding NodeType objects"""

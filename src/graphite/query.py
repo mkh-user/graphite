@@ -3,13 +3,13 @@ Query engine and object for Graphite
 """
 from collections import defaultdict
 from collections.abc import Callable
-from datetime import date, datetime
 from functools import reduce
 from typing import Any, TYPE_CHECKING
 
 from typing_extensions import deprecated
 
-from .exceptions import ConditionError, DateParseError, NotFoundError
+from .parser import GraphiteParser
+from .exceptions import ConditionError, NotFoundError
 from .instances import Node, Relation
 from .types import RelationType
 
@@ -27,11 +27,11 @@ class QueryResult:
 	"""
 
 	def __init__(
-		self, graph_engine: 'GraphiteEngine', nodes: set[Node], edges: set[int] = None
+		self, graph_engine: 'GraphiteEngine', nodes: set[Node], edges: set[Relation] = None
 	):
 		self.engine = graph_engine
 		self.nodes = nodes
-		self.edges: set[int] = edges or set() # keep relation IDs
+		self.edges: set[Relation] = edges or set()
 		self.current_relation: RelationType | None = None
 		self.direction: str = 'outgoing'
 
@@ -89,7 +89,7 @@ class QueryResult:
 
 		:raise NotFoundError: if any relations not found in engine
 		"""
-		self.engine.remove_relations({self.engine.relations[r] for r in self.validate().edges})
+		self.engine.remove_relations(self.edges)
 		return QueryResult(self.engine, self.nodes, None)
 
 	def validate(self) -> 'QueryResult':
@@ -101,7 +101,7 @@ class QueryResult:
 		return QueryResult(
 			self.engine,
 			{node for node in self.nodes if node.id in self.engine.nodes},
-			{relation for relation in self.edges if relation in self.engine.relations},
+			{relation for relation in self.edges if id(relation) in self.engine.relations},
 		)
 
 	def where(self, condition: str | Callable) -> 'QueryResult':
@@ -126,19 +126,17 @@ class QueryResult:
 					raise ConditionError(str(condition)) from e
 		else:
 			# String condition like "age > 18"
-			for processing_node in self.nodes:
-				if self._evaluate_condition(processing_node, condition):
-					filtered_nodes.add(processing_node)
+			filtered_nodes = self._evaluate_condition(self.nodes, condition)
 
 		return QueryResult(self.engine, filtered_nodes, self.edges)
 
 	# pylint: disable=too-many-branches
 	@staticmethod
-	def _evaluate_condition(target_node: Node, condition: str) -> bool:
+	def _evaluate_condition(target_nodes: set[Node], condition: str) -> set[Node]:
 		"""
 		Evaluate a condition string on a node
 
-		:param target_node: target node
+		:param target_nodes: target nodes
 		:param condition: condition string
 
 		:return: bool, evaluated condition
@@ -152,54 +150,23 @@ class QueryResult:
 			if op in condition:
 				left, right = condition.split(op)
 				left = left.strip()
-				right = right.strip()
+				right = GraphiteParser.parse_value(right.strip())
 
-				# Get value from node
-				node_value = target_node.get(left)
-				if node_value is None:
-					return False
-
-				# Parse right side
-				if right[0] in ('"', "'") and right[-1] in ('"', "'"):
-					right_value = right[1:-1]
-				elif right.isdigit():
-					right_value = int(right)
-				elif right.replace('.', '').isdigit() and right.count('.') == 1:
-					right_value = float(right)
-				else:
-					right_value = right
-
-				if right_value == "true":
-					right_value = True
-				elif right_value == "false":
-					right_value = False
-
-				if isinstance(node_value, date):
-					try:
-						right_value = datetime.strptime(right_value, "%Y-%m-%d").date()
-					except Exception as e:
-						raise DateParseError(right_value) from e
-
-				# Apply operation
-				result = None
 				try:
 					if op in ('=', '=='):
-						result = node_value == right_value
+						return {n for n in target_nodes if n.get(left) is not None and n.get(left) == right}
 					if op == '!=':
-						result = node_value != right_value
+						return {n for n in target_nodes if n.get(left) is not None and n.get(left) != right}
 					if op == '>':
-						result = node_value > right_value
+						return {n for n in target_nodes if n.get(left) is not None and n.get(left) > right}
 					if op == '<':
-						result = node_value < right_value
+						return {n for n in target_nodes if n.get(left) is not None and n.get(left) < right}
 					if op == '>=':
-						result = node_value >= right_value
+						return {n for n in target_nodes if n.get(left) is not None and n.get(left) >= right}
 					if op == '<=':
-						result = node_value <= right_value
+						return {n for n in target_nodes if n.get(left) is not None and n.get(left) <= right}
 				except TypeError as e:
 					raise ConditionError(condition) from e
-				if result is None:
-					raise ConditionError(condition)
-				return result
 
 		raise ConditionError(condition)
 
@@ -252,7 +219,7 @@ class QueryResult:
 		:except NotFoundError: if relation_type is invalid for engine
 		"""
 		result_nodes: set[Node] = set()
-		result_edges: set[int] = set()
+		result_edges: set[Relation] = set()
 
 		if relation_type and relation_type not in self.engine.relation_types:
 			raise NotFoundError(
@@ -261,19 +228,16 @@ class QueryResult:
 			)
 
 		for processing_node in self.nodes:
-			if processing_node.id not in self.engine.nodes:
-				continue
-
 			if direction == 'outgoing':
 				edges = self.engine.get_relations_from(processing_node.id, relation_type)
 			elif direction == 'incoming':
 				edges = self.engine.get_relations_to(processing_node.id, relation_type)
-			else:  # both
+			else: # both
 				edges = (self.engine.get_relations_from(processing_node.id, relation_type).union(
 					self.engine.get_relations_to(processing_node.id, relation_type)
 				))
 
-			result_edges.update({id(r) for r in edges})
+			result_edges.update(edges)
 			for edge in edges:
 				if direction == 'outgoing':
 					target_id = edge.to_node
@@ -394,8 +358,8 @@ class QueryResult:
 		"""
 		return QueryResult(
 			self.engine,
-			self.nodes.union(query.nodes),
-			self.edges.union(query.edges)
+			self.nodes | query.nodes,
+			self.edges | query.edges
 		)
 
 	def exclude(self, query: 'QueryResult') -> 'QueryResult':
@@ -551,7 +515,7 @@ class QueryResult:
 
 		:return: set of relations
 		"""
-		return {self.engine.relations[r] for r in self.edges}
+		return self.edges
 
 	def first(
 		self,
@@ -598,5 +562,5 @@ class QueryBuilder:
 		return QueryResult(
 			self.engine,
 			set(self.engine.nodes.values()),
-			set(self.engine.relations.keys())
+			set(self.engine.relations.values())
 		)

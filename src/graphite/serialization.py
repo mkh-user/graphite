@@ -14,15 +14,40 @@ from .types import DataType, Field, NodeType, RelationType
 GRAPHITE_TYPE_FIELD = "__graphite_type__"
 DEFAULT_FACTORY_FIELD = "__default_factory"
 
-def _serialize_instance(instance: Node | Relation) -> dict[str, Any]:
+def _serialize_node(node: Node) -> dict[str, Any]:
 	return {
-		GRAPHITE_TYPE_FIELD: type(instance).__name__,
-		"type_name"        : instance.type_name,
-		"id"               : instance.id if hasattr(instance, "id") else None,
-		"values"           : instance.values,
-		"from_node"        : instance.from_node if hasattr(instance, "from_node") else None,
-		"to_node"          : instance.to_node if hasattr(instance, "to_node") else None,
-		"type_ref"         : instance.type_ref.name if instance.type_ref else None
+		GRAPHITE_TYPE_FIELD: "Node",
+		"type_name"        : node.type_name,
+		"id"               : node.id,
+		"values"           : node.values,
+	}
+
+def _serialize_relation(relation: Relation) -> dict[str, Any]:
+	return {
+		GRAPHITE_TYPE_FIELD: "Relation",
+		"type_name"        : relation.type_name,
+		"from_node"        : relation.from_node,
+		"to_node"          : relation.to_node,
+		"values"           : relation.values,
+	}
+
+def _serialize_node_type(node_type: NodeType) -> dict[str, Any]:
+	return {
+		GRAPHITE_TYPE_FIELD: "NodeType",
+		"name"             : node_type.name,
+		"parent"           : node_type.parent.name if node_type.parent else None,
+		"fields"           : node_type.fields,
+	}
+
+def _serialize_relation_type(relation_type: RelationType) -> dict[str, Any]:
+	return {
+		GRAPHITE_TYPE_FIELD: "RelationType",
+		"name"             : relation_type.name,
+		"from_type"        : relation_type.from_type,
+		"to_type"          : relation_type.to_type,
+		"fields"           : relation_type.fields,
+		"reverse_name"     : relation_type.reverse_name,
+		"is_bidirectional" : relation_type.is_bidirectional,
 	}
 
 class GraphiteJSONEncoder(json.JSONEncoder):
@@ -60,29 +85,25 @@ class GraphiteJSONEncoder(json.JSONEncoder):
 			result[DEFAULT_FACTORY_FIELD] = o.default_factory.__name__ if o.default_factory else None
 			return result
 
-		# Handle Node and Relation instances (already dataclasses but need special handling)
-		if isinstance(o, (Node, Relation)):
-			# Convert to dict with minimal information
-			return _serialize_instance(o)
+		# Handle Node and Relation instances
+		if isinstance(o, Node):
+			return _serialize_node(o)
+		if isinstance(o, Relation):
+			return _serialize_relation(o)
 
-		# Handle NodeType and RelationType (dataclasses with parent references)
-		if isinstance(o, (NodeType, RelationType)):
-			result = asdict(o)
-			result[GRAPHITE_TYPE_FIELD] = type(o).__name__
-			# Convert parent to name reference to avoid circular references
-			if isinstance(o, NodeType) and o.parent:
-				result["parent"] = o.parent.name
-			# Remove type_ref from serialization
-			result.pop("type_ref", None)
-			return result
+		# Handle NodeType and RelationType
+		if isinstance(o, NodeType):
+			return _serialize_node_type(o)
+		if isinstance(o, RelationType):
+			return _serialize_relation_type(o)
 
 		# Handle Field
 		if isinstance(o, Field):
-			result = asdict(o)
-			result[GRAPHITE_TYPE_FIELD] = "Field"
-			# Convert dtype to value
-			result["dtype"] = o.dtype.value
-			return result
+			return {
+				GRAPHITE_TYPE_FIELD: "Field",
+				"name"             : o.name,
+				"dtype"            : o.dtype,
+			}
 
 		# Handle dataclasses
 		if is_dataclass(o) and not isinstance(o, type):
