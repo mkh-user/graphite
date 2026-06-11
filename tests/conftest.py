@@ -6,19 +6,19 @@ import sys
 import tempfile
 from datetime import date
 
-import pytest
+from pytest import fixture
 
 sys.path.insert(0, os.path.abspath('..'))
 from src.graphite import GraphiteEngine # pylint: disable=wrong-import-position
 
-@pytest.fixture
+@fixture
 def clean_engine():
 	"""Create a fresh GraphiteEngine instance"""
 	engine = GraphiteEngine()
 	yield engine
 	# Cleanup if needed
 
-@pytest.fixture
+@fixture
 def populated_engine():
 	"""Create engine with sample data"""
 	engine = GraphiteEngine()
@@ -82,7 +82,7 @@ def populated_engine():
 
 	return engine
 
-@pytest.fixture
+@fixture
 def temp_json_file():
 	"""Create a temporary JSON file for testing"""
 	with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
@@ -94,7 +94,7 @@ def temp_json_file():
 	if os.path.exists(temp_path):
 		os.unlink(temp_path)
 
-@pytest.fixture
+@fixture
 def engine_with_inheritance():
 	"""Create engine with inheritance hierarchy"""
 	engine = GraphiteEngine()

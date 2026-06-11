@@ -7,6 +7,9 @@ A clean, embedded graph database engine for Python.
 **Graphite** is a lightweight yet flexible **graph database engine** implemented in pure Python.
 It is designed to model graph-like data inside large Python codebases **without introducing the complexity of an external database**.
 
+Optimized for graphs up to 500K nodes (tested up to 1M). 10x faster than NetworkX, with pure Python simplicity.
+(Repeat benchmark available at `tests/benchmark.py`)
+
 ---
 
 ## Features

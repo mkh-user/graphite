@@ -9,7 +9,6 @@ synthetic, configurable workloads. It reports timing statistics and, where
 possible, memory usage.
 """
 
-import argparse
 import gc
 import json
 import os
@@ -18,7 +17,14 @@ import sys
 import time
 from datetime import date
 from typing import Any
-from pympler import asizeof
+from typing import Annotated
+
+try:
+	from pympler import asizeof
+	import typer
+	from tqdm import tqdm, trange
+except ImportError as e:
+	raise ImportError("Run 'pip install pympler typer tqdm)") from e
 
 # ---------------------------------------------------------------------------
 # Try to import graphite – if it isn't editable, use installed
@@ -26,20 +32,22 @@ from pympler import asizeof
 try:
 	# Add parent directory to path (assumes benchmark is inside the package or next to it)
 	sys.path.insert(0, os.path.abspath('..'))
-	from src.graphite import DataType, Field, NodeType, QueryBuilder, GraphiteEngine
+	from src.graphite import DataType, Field, NodeType, GraphiteEngine
+	print("Source of Graphite found, using latest dev version")
 except ImportError:
-	from graphite import DataType, Field, NodeType, QueryBuilder, GraphiteEngine
+	print("Using installed Graphite version...")
+	from graphite import DataType, Field, NodeType, GraphiteEngine
 
 # ---------------------------------------------------------------------------
 # Benchmark helpers
 # ---------------------------------------------------------------------------
-def timed_call(func, *args, _iterations: int = 10, _setup=None, **kwargs) -> dict[str, float]:
+def timed_call(func, *args, _iterations: int, _setup=None, **kwargs) -> dict[str, float]:
 	"""
 	Time a callable over multiple iterations and return summary statistics.
 	Runs garbage collection before each iteration to reduce noise.
 	"""
 	times = []
-	for _ in range(_iterations):
+	for _ in trange(_iterations, desc=f"Running {func.__name__}", leave=False):
 		if _setup:
 			_setup()
 		gc.collect()
@@ -68,10 +76,11 @@ def human_bytes(num_bytes: float) -> str:
 
 
 def n(num: float) -> str:
+	"""Convert number to a human-readable string."""
 	if num >= 1000000.0:
-		return f"{num / 1000000.0:.0}M"
+		return f"{num / 1000000.0:.1f}M"
 	if num >= 1000.0:
-		return f"{num / 1000.0:.0f}K"
+		return f"{num / 1000.0:.1f}K"
 	return str(num)
 
 
@@ -80,11 +89,11 @@ def n(num: float) -> str:
 # ---------------------------------------------------------------------------
 # pylint: disable=too-many-locals
 def create_benchmark_engine(
-	num_node_types: int = 5,
-	num_relation_types: int = 3,
-	num_nodes: int = 1000,
-	num_relations: int = 500,
-	inheritance_depth: int = 1,
+	num_node_types: int,
+	num_relation_types: int,
+	num_nodes: int,
+	num_relations: int,
+	inheritance_depth: int,
 ) -> GraphiteEngine:
 	"""
 	Build an engine with a synthetic schema and populate it with nodes and relations.
@@ -93,6 +102,7 @@ def create_benchmark_engine(
 	engine = GraphiteEngine()
 
 	# Define node types with a simple inheritance chain
+	t = tqdm(total=4, desc="Creating benchmark engine", leave=False)
 	for i in range(num_node_types):
 		parent = None
 		if inheritance_depth > 1 and i > 0:
@@ -114,6 +124,7 @@ def create_benchmark_engine(
 			"\n" +
 			"\n".join([f"{field[0]}: {field[1]}" for field in fields])
 		)
+	t.update()
 
 	# Define relation types
 	for i in range(num_relation_types):
@@ -132,6 +143,7 @@ def create_benchmark_engine(
 			f"\n{from_type}->{to_type}\n" +
 			"\n".join([f"{field[0]}: {field[1]}" for field in fields]),
 		)
+	t.update()
 
 	# Populate nodes
 	nodes = []
@@ -143,7 +155,7 @@ def create_benchmark_engine(
 		str_vals = [f"str_{node}_{j}" for j in range(2)]
 		float_val = float(node % 100) / 10.0
 		# Date as days from 2020-01-01
-		date_val = date(2020, 1, 1).toordinal() + node
+		date_val = date(2020, 1, 1).toordinal() + node % 10000
 		date_val = date.fromordinal(date_val)
 		bool_val = node % 2 == 0
 
@@ -159,6 +171,7 @@ def create_benchmark_engine(
 
 		node = engine.create_node(f"NodeType{type_idx}", node_id, *values.values())
 		nodes.append(node)
+	t.update()
 
 	# Populate relations
 	for r in range(num_relations):
@@ -169,19 +182,35 @@ def create_benchmark_engine(
 		to_id = next(iter(engine.node_by_type[rel_type_obj.to_type]))
 		values = {"weight": float(r % 100) / 100.0, "label": f"edge_{r}"}
 		engine.create_relation(from_id, to_id, rel_type_name, *values.values())
-
+	t.update()
+	t.close()
 	return engine
 
 
 # ---------------------------------------------------------------------------
 # Benchmark class
 # ---------------------------------------------------------------------------
-class GraphiteBenchmarks:
+class GraphiteBenchmarks: # pylint: disable=too-many-instance-attributes
 	"""Collection of micro-benchmarks for Graphite."""
 
-	def __init__(self, size: int = 5000, runs: int = 10):
-		self.size = size  # base scale factor for data
+	# pylint: disable=too-many-arguments, too-many-positional-arguments
+	def __init__(
+		self,
+		size: int,
+		runs: int,
+		node_types: int,
+		relation_types: int,
+		relations_ratio: float,
+		inheritance_depth: int,
+	):
+		self.size = size
+		self.hsize = n(size)
 		self.runs = runs
+		self.node_types = node_types
+		self.relation_types = relation_types
+		self.relations_ratio = relations_ratio
+		self.relations_count = int(size * relations_ratio)
+		self.inheritance_depth = inheritance_depth
 		self.results: dict[str, Any] = {}
 
 	def _run_benchmark(self, name: str, func, *args, _setup=None, **kwargs):
@@ -189,6 +218,16 @@ class GraphiteBenchmarks:
 		stats = timed_call(func, *args, _iterations=self.runs, _setup=_setup, **kwargs)
 		self.results[name] = stats
 		return stats
+
+	def create_default_engine(self):
+		"""Create an engine with default size."""
+		return create_benchmark_engine(
+			self.node_types,
+			self.relation_types,
+			self.size,
+			self.relations_count,
+			self.inheritance_depth,
+		)
 
 	def benchmark_all(self):
 		"""Run all benchmarks and collect results."""
@@ -204,7 +243,10 @@ class GraphiteBenchmarks:
 	# ---------- Schema definition ----------
 	def benchmark_schema_definition(self):
 		"""Define many node and relation types repeatedly."""
-		n_types = max(1, self.size // 10)
+		n_types = self.node_types
+
+		t = tqdm(total=2, desc="Benchmark: Schema", leave=False)
+
 		# Node types
 		def define_node_types():
 			eng = GraphiteEngine()
@@ -220,6 +262,7 @@ class GraphiteBenchmarks:
 				eng.define_node(definition)
 
 		self._run_benchmark(f"schema_define_node_types(nt: {n(n_types)})", define_node_types)
+		t.update()
 
 		# Relation types
 		def define_relation_types():
@@ -237,21 +280,20 @@ class GraphiteBenchmarks:
 			f"schema_define_relation_types (rt: {n(max(1, n_types // 2))})",
 			define_relation_types
 		)
+		t.update()
+		t.close()
 
 	# ---------- Node creation ----------
 	def benchmark_node_creation(self):
 		"""Create nodes in an already-defined engine."""
 		# Build a tiny engine with schema to reuse
-		engine = create_benchmark_engine(
-			num_node_types=3,
-			num_relation_types=1,
-			num_nodes=0,
-			num_relations=0
-		)
+		engine = self.create_default_engine()
+
+		t = tqdm(total=1, desc="Benchmark: Node Creation", leave=False)
 
 		def create_many_nodes():
 			# Create nodes of a specific type
-			for i in range(self.size):
+			for i in trange(self.size, desc="Creating nodes", leave=False):
 				engine.create_node("NodeType0", f"tmp_node_{i}",
 					i, i*2+1, i*3, f"str_{i}", f"data_{i}",
 					float(i)/10.0, "2023-01-01", True)
@@ -266,19 +308,17 @@ class GraphiteBenchmarks:
 			gc.collect()
 
 		self._run_benchmark(f"node_creation(n: {n(self.size)})", create_many_nodes, _setup=setup_clean)
+		t.close()
 
 	# ---------- Relation creation ----------
 	def benchmark_relation_creation(self):
 		"""Benchmark creating relation instances"""
-		engine = create_benchmark_engine(
-			num_node_types=2, num_relation_types=1,
-			num_nodes=self.size, num_relations=0
-		)
-		# Ensure nodes exist
-		size = min(self.size, len(engine.nodes))
+		engine = self.create_default_engine()
+
+		t = tqdm(total=2, desc="Benchmark: Relation Creation", leave=False)
 
 		def create_relations():
-			for i in range(size):
+			for i in trange(self.size, desc="Creating relations", leave=False):
 				rel_type = next(iter(engine.relation_types))
 				rel_type_obj = engine.relation_types[rel_type]
 				# Just select valid node types
@@ -287,121 +327,122 @@ class GraphiteBenchmarks:
 				engine.create_relation(src_n, tgt_n, rel_type, float(i)/100.0, f"edge_{i}")
 
 		def setup_clean():
-			engine.relations.clear()
-			engine.relations_by_type.clear()
-			engine.relations_by_from.clear()
-			engine.relations_by_to.clear()
+			engine.remove_relations(set(engine.relations.values()))
 			gc.collect()
 
-		self._run_benchmark(f"relation_creation(r: {n(size)})", create_relations, _setup=setup_clean)
+		self._run_benchmark(f"relation_creation(r: {n(self.size)})", create_relations, _setup=setup_clean)
+		t.close()
 
 	# ---------- Queries ----------
 	def benchmark_queries(self):
 		"""Benchmark queries and related functions"""
-		# Build a sufficiently large engine
-		size = max(100, self.size)
-		engine = create_benchmark_engine(
-			num_node_types=4,
-			num_relation_types=3,
-			num_nodes=size,
-			num_relations=size // 2
-		)
+		t = tqdm(total=22, desc="Benchmark: Queries", leave=False)
 
-		query = QueryBuilder(engine)
+		engine = self.create_default_engine()
+		query = engine.query
 		all_nodes_result = query.all()
-
-		# 1) get_node
-		sample_id = "node_0"
-		self._run_benchmark(f"get_node(n: {n(self.size)})", engine.get_node, sample_id)
-
-		# 2) get_nodes_of_type (with subtypes)
-		self._run_benchmark(
-			f"get_nodes_of_type(n: {n(self.size)}, with subtypes)",
-			engine.get_nodes_of_type,
-			"NodeType0",
-			True
-		)
-
-		# 3) get_relations_from / to
-		sample_node = engine.nodes[f"node_{size//2}"]
-		self._run_benchmark(
-			f"query_get_relations_from(n: {n(self.size)})",
-			engine.get_relations_from,
-			sample_node.id
-		)
-		self._run_benchmark(
-			f"query_get_relations_to(n: {n(self.size)})",
-			engine.get_relations_to,
-			sample_node.id
-		)
-
-		# 4) where (string condition)
-		self._run_benchmark(
-			f"query_where_string(n: {n(self.size)})",
-			lambda: all_nodes_result.where("int_field_0 > 500")
-		)
-
-		# 5) where (lambda)
-		self._run_benchmark(
-			f"query_where_lambda(n: {n(self.size)})",
-			lambda: all_nodes_result.where(lambda node: node.get("int_field_0") > 500)
-		)
-
-		# 6) traverse
-		self._run_benchmark(
-			f"query_outgoing(n: {n(self.size)}, typed)",
-			lambda: all_nodes_result.outgoing("RelType0")
-		)
-		self._run_benchmark(
-			f"query_incoming(n: {n(self.size)}, typed)",
-			lambda: all_nodes_result.incoming("RelType0")
-		)
-		self._run_benchmark(
-			f"query_both(n: {n(self.size)}, typed)",
-			lambda: all_nodes_result.both("RelType0")
-		)
-
-		# 7) aggregation: count, sum, avg, min, max, group_by, order_by
 		limited = all_nodes_result.limit(100)
-		self._run_benchmark("query_count(n: 100)", limited.count)
-		self._run_benchmark("query_sum(n: 100)", limited.sum, "int_field_0")
-		self._run_benchmark("query_avg(n: 100)", limited.avg, "float_field")
-		self._run_benchmark("query_min(n: 100)", limited.min, "int_field_1")
-		self._run_benchmark("query_max(n: 100)", limited.max, "int_field_1")
-		self._run_benchmark("query_group_by(n: 100)", limited.group_by, "bool_field")
-		self._run_benchmark("query_order_by(n: 100)", lambda: limited.order_by("int_field_0", True))
-
-		# 8) set operation
+		remove_result = all_nodes_result.limit(100)
 		other = query.all().where("int_field_0 < 200")
-		other_size = n(other.count())
-		self._run_benchmark(f"query_union(n: 100 + {other_size})", lambda: limited.union(other))
-		self._run_benchmark(f"query_exclude(n: 100 + {other_size})", lambda: limited.exclude(other))
-		self._run_benchmark(f"query_intersect(n: 100 + {other_size})", lambda: limited.intersect(other))
+		other_operation_size = n(limited.union(other).count())
 
-		# 9) mutation: set
+		def query_where_string():
+			all_nodes_result.where("int_field_0 > 500")
+
+		def query_where_lambda():
+			all_nodes_result.where(lambda node: node.get("int_field_0") > 500)
+
+		def query_outgoing():
+			all_nodes_result.outgoing("RelType0")
+
+		def query_incoming():
+			all_nodes_result.incoming("RelType0")
+
+		def query_both():
+			all_nodes_result.both("RelType0")
+
+		benchmarks = [
+			[
+				f"get_node(n: {self.hsize})", engine.get_node,
+				"node_0"
+			], [
+				f"get_nodes_of_type(n: {n(self.size)}, with subtypes)", engine.get_nodes_of_type,
+				"NodeType0", True
+			], [
+				f"query_get_relations_from(n: {n(self.size)})", engine.get_relations_from,
+				f"node_{self.size//2}"
+			], [
+				f"query_get_relations_to(n: {n(self.size)})", engine.get_relations_to,
+				f"node_{self.size//2}"
+			], [
+				f"query_where_string(n: {n(self.size)})", query_where_string
+			], [
+				f"query_where_lambda(n: {n(self.size)})", query_where_lambda
+			], [
+				f"query_outgoing(n: {n(self.size)}, typed)", query_outgoing
+			], [
+				f"query_incoming(n: {n(self.size)}, typed)", query_incoming
+			], [
+				f"query_both(n: {n(self.size)}, typed)", query_both
+			], [
+				"query_count(n: 100)", limited.count
+			], [
+				"query_sum(n: 100)", limited.sum,
+				"int_field_0"
+			], [
+				"query_avg(n: 100)", limited.avg,
+				"float_field"
+			], [
+				"query_min(n: 100)", limited.min,
+				"int_field_1"
+			], [
+				"query_max(n: 100)", limited.max,
+				"int_field_1"
+			], [
+				"query_group_by(n: 100)", limited.group_by,
+				"bool_field"
+			], [
+				"query_order_by(n: 100)", limited.order_by,
+				"int_field_0", True
+			], [
+				f"query_union(n: {other_operation_size})", limited.union,
+				other
+			], [
+				f"query_exclude(n: {other_operation_size})", limited.exclude,
+				other
+			], [
+				f"query_intersect(n: {other_operation_size})", limited.intersect,
+				other
+			], [
+				"query_remove_node(n: 100)", remove_result.remove,
+			], [
+				f"query_validate(n: {n(other.count())})", other.validate
+			]
+		]
+
+		for b in benchmarks:
+			self._run_benchmark(*b)
+			t.update()
+
 		self._run_benchmark("query_set(n: 100)", limited.set_val, int_field_0=9999)
-
-		# 10) remove
-		remove_result = limited
-		self._run_benchmark("query_remove_node(n: 100)", remove_result.remove)
-
-		# 11) validate
-		self._run_benchmark(f"query_validate(n: {other_size})", other.validate)
+		t.update()
+		t.close()
 
 	# ---------- Serialization ----------
 	def benchmark_serialization(self):
 		"""Benchmark save / load engine"""
-		size = max(100, self.size)
-		engine = create_benchmark_engine(
-			num_node_types=3,
-			num_relation_types=2,
-			num_nodes=size,
-			num_relations=size // 2
-		)
+		engine = self.create_default_engine()
 		filename = "_benchmark_temp.json"
 
+		t = tqdm(total=4, desc="Benchmark: Serialization", leave=False)
+
 		# Save
-		self._run_benchmark(f"serialization_save(n: {n(size)}, r: {n(size // 2)})", engine.save, filename)
+		self._run_benchmark(
+			f"serialization_save(n: {self.hsize}, r: {n(self.relations_count)})",
+			engine.save,
+			filename
+		)
+		t.update()
 
 		# Load (safe)
 		def load_safe():
@@ -409,7 +450,11 @@ class GraphiteBenchmarks:
 			eng.load_safe(filename, max_size_mb=500, validate_schema=False)
 			return eng
 
-		self._run_benchmark(f"serialization_load(n: {n(size)}, r: {n(size // 2)}, validate off)", load_safe)
+		self._run_benchmark(
+			f"serialization_load(n: {self.hsize}, r: {n(self.relations_count)}, validate off)",
+			load_safe
+		)
+		t.update()
 
 		# Load (safe + validation)
 		def load_safe_validate():
@@ -418,8 +463,10 @@ class GraphiteBenchmarks:
 			return eng
 
 		self._run_benchmark(
-			f"serialization_load(n: {n(size)}, r: {n(size // 2)}, validate on)", load_safe_validate
+			f"serialization_load(n: {self.hsize}, r: {n(self.relations_count)}, validate on)",
+			load_safe_validate
 		)
+		t.update()
 
 		# Load (unsafe/low-level)
 		def load_unsafe():
@@ -427,7 +474,12 @@ class GraphiteBenchmarks:
 			eng.load(filename, safe_mode=False)
 			return eng
 
-		self._run_benchmark(f"serialization_load(n: {n(size)}, r: {n(size // 2)}, unsafe mode)", load_unsafe)
+		self._run_benchmark(
+			f"serialization_load(n: {self.hsize}, r: {n(self.relations_count)}, unsafe mode)",
+			load_unsafe
+		)
+		t.update()
+		t.close()
 
 		# Cleanup
 		try:
@@ -439,6 +491,9 @@ class GraphiteBenchmarks:
 	def benchmark_dsl_parsing(self):
 		"""Benchmark parsing DSL"""
 		size = max(50, self.size // 10)
+
+		t = tqdm(total=1, desc="Benchmark: DSL Parsing", leave=False)
+
 		# Generate DSL text with node/relation definitions and instances
 		# definitions
 		dsl_lines = [
@@ -463,32 +518,35 @@ class GraphiteBenchmarks:
 			engine.parse(dsl_text)
 
 		self._run_benchmark(f"dsl_parse({len(dsl_lines)} lines)", parse_dsl)
+		t.update()
+		t.close()
 
 	# ---------- Memory ----------
 	def benchmark_memory(self):
 		"""Benchmark memory usage"""
 		size = max(100, self.size)
-		engine = create_benchmark_engine(
-			num_node_types=3,
-			num_relation_types=2,
-			num_nodes=size,
-			num_relations=size // 2
-		)
+		t = tqdm(total=1, desc="Benchmark: Memory", leave=False)
+		engine = self.create_default_engine()
 		engine_size = asizeof.asizeof(engine)
 		if engine:
 			engine = None
 		self.results[f"memory_overhead(n: {n(size)}, r: {n(size // 2)})"] = {
 			"size_bytes": engine_size,
 			"size_human": human_bytes(engine_size),
-			"per_node_byte": round(engine_size / size if size else 0),
+			"per_node_byte": int(round(engine_size / size if size else 0)),
 		}
+		t.update()
+		t.close()
 
 # ---------------------------------------------------------------------------
 # Report generation
 # ---------------------------------------------------------------------------
-def generate_report(bench: GraphiteBenchmarks, fmt: str = "plain") -> str:
+def generate_report(bench: GraphiteBenchmarks, dump_json: bool = False) -> str:
 	"""Format benchmark results as a string."""
-	lines = []
+	if dump_json:
+		return json.dumps(bench.results, indent=2, default=str)
+
+	lines: list = []
 	width = 110
 	lines.append("=" * width)
 	lines.append(" " * 40 + "GRAPHITE BENCHMARK REPORT")
@@ -496,9 +554,6 @@ def generate_report(bench: GraphiteBenchmarks, fmt: str = "plain") -> str:
 	lines.append("=" * width)
 	lines.append("| Metric " + " " * 44 + "| Avg         | Min         | Max         | StDev       |")
 	lines.append("|" + "-" * 52 + "|" + ("-" * 13 + "|") * 4)
-
-	if fmt == "json":
-		return json.dumps(bench.results, indent=2, default=str)
 
 	memory_info = None
 	for name, stats in sorted(bench.results.items()):
@@ -510,16 +565,19 @@ def generate_report(bench: GraphiteBenchmarks, fmt: str = "plain") -> str:
 				f"{stats['max']*1000:8.3f} ms | {stats['stdev']*1000:8.3f} ms |"
 			)
 		elif isinstance(stats, dict) and "size_bytes" in stats:
-			"Memory overhead: 142.3 KB (total: 145728 B, per node: 1457.28 B)"
 			memory_info = (
 				f"Memory overhead: {stats['size_human']} (total: {stats['size_bytes']} B, "
-				f"per node: {stats['per_node_byte']:.3f} B)"
+				f"per node: {stats['per_node_byte']} B)"
 			)
 		else:
 			# Other info
 			lines.append(f"| {name:<50} | {stats} |")
 	if memory_info:
+		if len(lines) == 6:
+			lines.clear()
 		lines.append(memory_info)
+	if len(lines) == 6:
+		return "No benchmark to report."
 
 	return "\n".join(lines)
 
@@ -527,31 +585,89 @@ def generate_report(bench: GraphiteBenchmarks, fmt: str = "plain") -> str:
 # ---------------------------------------------------------------------------
 # CLI entry point
 # ---------------------------------------------------------------------------
-def main():
-	"""Main entry point"""
-	parser = argparse.ArgumentParser(
-		description="Advanced benchmark suite for Graphite embedded graph database"
+def main( # pylint: disable=too-many-arguments, too-many-positional-arguments, unused-argument
+	size: Annotated[int, typer.Option(help="Database size (nodes)")] = 100000,
+	runs: Annotated[int, typer.Option(help="Runs to benchmark")] = 10,
+	node_types: Annotated[int, typer.Option(help="Number of node types")] = 5,
+	relation_types: Annotated[int, typer.Option(help="Number of relation types")] = 3,
+	relations_ratio: Annotated[float, typer.Option(help="Relation ratio")] = 0.5,
+	inheritance_depth: Annotated[int, typer.Option(help="Inheritance depth on node types")] = 1,
+	dump_json: Annotated[
+		bool,
+		typer.Option("--json", help="Output to JSON instead of table")
+	] = False,
+	run_all: Annotated[bool, typer.Option(help="Run all benchmarks")] = True,
+	on_schema: Annotated[
+		bool,
+		typer.Option(help="Benchmark node type and relation type definitions")
+	] = None,
+	on_node_creation: Annotated[
+		bool,
+		typer.Option(help="Benchmark node creation")
+	] = None,
+	on_relation_creation: Annotated[
+		bool,
+		typer.Option(help="Benchmark relation creation")
+	] = None,
+	on_queries: Annotated[
+		bool,
+		typer.Option(help="Benchmark queries")
+	] = None,
+	on_serialization: Annotated[
+		bool,
+		typer.Option(help="Benchmark save and load")
+	] = None,
+	on_dsl_parse: Annotated[
+		bool,
+		typer.Option(help="Benchmark a complete DSL parsing")
+	] = None,
+	on_memory: Annotated[
+		bool,
+		typer.Option(help="Benchmark memory usage")
+	] = None,
+):
+	"""
+	Advanced benchmark suite for Graphite embedded graph database
+	"""
+	bench = GraphiteBenchmarks(
+		size,
+		runs,
+		node_types,
+		relation_types,
+		relations_ratio,
+		inheritance_depth,
 	)
-	parser.add_argument(
-		"--size", type=int, default=100000,
-		help="Base number of elements to generate (nodes, relations). Default: 10000"
-	)
-	parser.add_argument(
-		"--runs", type=int, default=10,
-		help="Number of iterations for each micro-benchmark. Default: 10"
-	)
-	parser.add_argument(
-		"--output", choices=["plain", "json"], default="plain",
-		help="Report format. Default: plain"
-	)
-	args = parser.parse_args()
 
-	print(f"Running Graphite benchmarks with size={args.size}, runs={args.runs} ...")
-	bench = GraphiteBenchmarks(size=args.size, runs=args.runs)
-	bench.benchmark_all()
-	report = generate_report(bench, fmt=args.output)
+	benchmarks = {
+		"on_schema": bench.benchmark_schema_definition,
+		"on_node_creation": bench.benchmark_node_creation,
+		"on_relation_creation": bench.benchmark_relation_creation,
+		"on_queries": bench.benchmark_queries,
+		"on_serialization": bench.benchmark_serialization,
+		"on_dsl_parse": bench.benchmark_dsl_parsing,
+		"on_memory": bench.benchmark_memory
+	}
+
+	benchmarks_to_run = {
+		name: func
+		for name, func in benchmarks.items()
+		if (run_all and (locals()[name] is None or locals()[name])) or (not run_all and locals()[name])
+	}
+
+	n_benchmarks = len(benchmarks_to_run)
+	if n_benchmarks:
+		print(
+			f"Running {n_benchmarks} benchmarks: " + ", ".join(benchmarks_to_run.keys())
+		)
+		for _, func in tqdm(benchmarks_to_run.items(), desc="Running benchmarks"):
+			func()
+
+	report = generate_report(
+		bench,
+		dump_json
+	)
 	print(report)
 
 
 if __name__ == "__main__":
-	main()
+	typer.run(main)

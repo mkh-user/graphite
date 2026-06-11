@@ -107,7 +107,9 @@ class GraphiteEngine:
 
 	# =============== DATA MANIPULATION ===============
 
-	def create_node(self, node_type: str, node_id: str, *values, parse_and_validate: bool = False) -> Node:
+	def create_node(
+		self, node_type: str, node_id: str, *values, parse_and_validate: bool = False
+	) -> Node:
 		"""
 		Create a node instance
 

@@ -34,6 +34,8 @@ dev = [
 
 benchmark = [
     "pympler~=1.1",
+    "typer~=0.24.1",
+    "tqdm~=4.67.1",
 ]
 
 [project.urls]

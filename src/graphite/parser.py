@@ -32,7 +32,7 @@ class GraphiteParser:
 		value = self.parse_value(value)
 		return self.validate_field_value(value, field)
 
-	# pylint: disable=broad-exception-caught, too-many-branches
+	# pylint: disable=broad-exception-caught, too-many-branches, too-many-return-statements
 	@staticmethod
 	def validate_field_value(value: Any, field: Field) -> Any:
 		"""
@@ -62,8 +62,7 @@ class GraphiteParser:
 			if field.dtype == DataType.BOOL:
 				if isinstance(value, str):
 					return value.lower() == "true"
-				else:
-					return bool(value)
+				return bool(value)
 			if field.dtype not in DataType:
 				raise NotFoundError(
 					"Data type",

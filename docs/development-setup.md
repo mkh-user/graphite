@@ -24,13 +24,9 @@ git clone https://github.com/user-name/graphite.git
 
 - [Install Python](https://www.python.org/downloads/). (Works on `3.9` to `3.14`)
 - Open terminal in project directory.
-- Install required Python packages:
+- Install required Python packages with optional development and benchmark dependencies:
 ```shell
-pip install -r requirements.txt
-```
-- Install `build` package if you need to build Graphite:
-```shell
-pip install build
+pip install ".[dev, benchmark]"
 ```
 
 ---
@@ -57,29 +53,32 @@ git checkout -b <new-branch-name>
 
 Always run checks before push to development branches.
 
-#### Pylint
-
 - Open terminal in project directory.
-- Install `pylint`:
+- Run this command to ensure you have `pylint` and `pytest`:
 ```shell
-pip install pylint
+pip install ".[dev]"
 ```
-- Lint code with pylint:
+- Lint code with pylint and modify your code until it get **10.00/10** rating:
 ```shell
 pylint $(git ls-files '*.py')
 ```
-- Ensure your code gives **10.00/10** rating.
-
-#### Pytest
-
-- Open terminal in project directory.
-- Install `pytest`:
+- Change directory to `tests/` with `cd tests`.
+- Run tests and unsure all are passed:
 ```shell
-pip install pytest
-```
-- Run unit tests:
-```shell
-cd ./tests
 pytest
 ```
-- Ensure all tests pass without problem.
+
+### Running benchmarks
+
+Run benchmarks before / after your changes to measure performance impacts.
+
+- Open terminal in project directory.
+- Run this command to ensure you have benchmark dependencies:
+```shell
+pip install ".[benchmark]"
+```
+- Change directory to `tests/` with `cd tests/`
+- Run benchmark (append `--help` to get more information):
+```shell
+python benchmark.py
+```
