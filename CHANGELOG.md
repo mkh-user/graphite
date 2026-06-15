@@ -18,7 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Parse and validate values for `create_node()` needs set `parse_and_validate` to `True`
+- Parse values for `create_node()` / `create_relations()` needs set `parse_fields` to `True`
 - Return relation objects instead of IDs in `query.edges`
 - Scale-up benchmark default size factor to 100K
 

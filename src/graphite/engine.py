@@ -108,7 +108,7 @@ class GraphiteEngine:
 	# =============== DATA MANIPULATION ===============
 
 	def create_node(
-		self, node_type: str, node_id: str, *values, parse_and_validate: bool = False
+		self, node_type: str, node_id: str, *values, parse_fields: bool = False
 	) -> Node:
 		"""
 		Create a node instance
@@ -116,7 +116,7 @@ class GraphiteEngine:
 		:param node_type: Node type
 		:param node_id: Node ID
 		:param values: Values for node fields
-		:param parse_and_validate: Whatever to parse and validate field values or not
+		:param parse_fields: Whatever to parse field values or not
 
 		:return: Node instance
 
@@ -141,19 +141,24 @@ class GraphiteEngine:
 
 		# Create values dictionary
 		node_values = {}
-		if parse_and_validate:
+		if parse_fields:
 			for current_field, value in zip(all_fields, values):
 				node_values[current_field.name] = self.parser.parse_field_value(value, current_field)
 		else:
 			for current_field, value in zip(all_fields, values):
-				node_values[current_field.name] = value
+				node_values[current_field.name] = self.parser.validate_field_value(
+					value,
+					current_field
+				)
 
 		new_node = Node(node_type, node_id, node_values, node_type_obj)
 		self.nodes[node_id] = new_node
 		self.node_by_type[node_type].add(node_id)
 		return new_node
 
-	def create_relation(self, from_id: str, to_id: str, rel_type: str, *values) -> Relation:
+	def create_relation(
+		self, from_id: str, to_id: str, rel_type: str, *values, parse_fields: bool = False
+	) -> Relation:
 		"""
 		Create a relation instance
 
@@ -161,6 +166,7 @@ class GraphiteEngine:
 		:param to_id: Target ID
 		:param rel_type: Relation type
 		:param values: Values for relation fields
+		:param parse_fields: Whatever to parse field values or not
 
 		:return: Relation instance
 
@@ -206,8 +212,15 @@ class GraphiteEngine:
 
 		# Create values dictionary
 		rel_values = {}
-		for current_field, value in zip(rel_type_obj.fields, values):
-			rel_values[current_field.name] = self.parser.parse_field_value(value, current_field)
+		if parse_fields:
+			for current_field, value in zip(rel_type_obj.fields, values):
+				rel_values[current_field.name] = self.parser.parse_field_value(value, current_field)
+		else:
+			for current_field, value in zip(rel_type_obj.fields, values):
+				rel_values[current_field.name] = self.parser.validate_field_value(
+					value,
+					current_field
+				)
 
 		new_relation = Relation(rel_type, from_id, to_id, rel_values, rel_type_obj)
 		relation_id = id(new_relation)
@@ -573,13 +586,13 @@ class GraphiteEngine:
 			elif '-[' in line and (']->' in line or ']-' in line):
 				# Relation instance
 				from_id, to_id, rel_type, values, _ = self.parser.parse_relation_instance(line)
-				self.create_relation(from_id, to_id, rel_type, *values)
+				self.create_relation(from_id, to_id, rel_type, *values, parse_fields=True)
 				i += 1
 
 			else:
 				# Node instance
 				node_type, node_id, values = self.parser.parse_node_instance(line)
-				self.create_node(node_type, node_id, *values, parse_and_validate=True)
+				self.create_node(node_type, node_id, *values, parse_fields=True)
 				i += 1
 
 	@deprecated("Use parse() instead")

@@ -180,7 +180,7 @@ class TestGraphiteBasicIntegration:
 
 		engine.create_node(
 			"AllTypes", "all1",
-			"text", 42, 3.14, "2023-01-01", True, parse_and_validate=True
+			"text", 42, 3.14, "2023-01-01", True
 		)
 
 		node = engine.get_node("all1")
