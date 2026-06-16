@@ -4,6 +4,7 @@ Data, relation, and node type classes for Graphite database
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from datetime import date
 from enum import Enum
 
 class DataType(Enum):
@@ -15,6 +16,16 @@ class DataType(Enum):
 	DATE = "date"
 	FLOAT = "float"
 	BOOL = "bool"
+
+class DataTypePython(Enum):
+	"""
+	Maps each data type to its corresponding Python data type.
+	"""
+	STRING = str
+	INT = int
+	DATE = date
+	FLOAT = float
+	BOOL = bool
 
 @dataclass
 class Field:

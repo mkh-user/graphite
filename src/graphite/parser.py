@@ -10,7 +10,7 @@ from .exceptions import (
 	DateParseError, FieldError, GraphiteError, NotFoundError, ParseError,
 	RelationTypeDefineError,
 )
-from .types import DataType, Field
+from .types import DataType, DataTypePython, Field
 
 class GraphiteParser:
 	"""Parser for Graphite DSL"""
@@ -47,6 +47,8 @@ class GraphiteParser:
 		"""
 		if value is None:
 			return None
+		if isinstance(value, DataTypePython[field.dtype.name].value):
+			return value
 		try:
 			if field.dtype == DataType.STRING:
 				return str(value)

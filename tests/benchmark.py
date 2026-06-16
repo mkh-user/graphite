@@ -166,7 +166,7 @@ def create_benchmark_engine(
 			f"str_field_{j}": str_vals[j] for j in range(2)
 		})
 		values["float_field"] = float_val
-		values["date_field"] = date_val.isoformat()  # stored as string, validated later
+		values["date_field"] = date_val
 		values["bool_field"] = bool_val
 
 		node = engine.create_node(f"NodeType{type_idx}", node_id, *values.values())
@@ -287,7 +287,9 @@ class GraphiteBenchmarks: # pylint: disable=too-many-instance-attributes
 	def benchmark_node_creation(self):
 		"""Create nodes in an already-defined engine."""
 		# Build a tiny engine with schema to reuse
-		engine = self.create_default_engine()
+		engine = create_benchmark_engine(
+			self.node_types, self.relation_types, 0, 0, 1
+		)
 
 		t = tqdm(total=1, desc="Benchmark: Node Creation", leave=False)
 
@@ -296,7 +298,7 @@ class GraphiteBenchmarks: # pylint: disable=too-many-instance-attributes
 			for i in trange(self.size, desc="Creating nodes", leave=False):
 				engine.create_node("NodeType0", f"tmp_node_{i}",
 					i, i*2+1, i*3, f"str_{i}", f"data_{i}",
-					float(i)/10.0, "2023-01-01", True)
+					float(i)/10.0, date(2023, 1, 1), True)
 
 		def setup_clean():
 			# Remove previously created nodes (but keep schema)
@@ -313,7 +315,9 @@ class GraphiteBenchmarks: # pylint: disable=too-many-instance-attributes
 	# ---------- Relation creation ----------
 	def benchmark_relation_creation(self):
 		"""Benchmark creating relation instances"""
-		engine = self.create_default_engine()
+		engine = create_benchmark_engine(
+			self.node_types, self.relation_types, self.size, 0, 1
+		)
 
 		t = tqdm(total=2, desc="Benchmark: Relation Creation", leave=False)
 
@@ -547,13 +551,13 @@ def generate_report(bench: GraphiteBenchmarks, dump_json: bool = False) -> str:
 		return json.dumps(bench.results, indent=2, default=str)
 
 	lines: list = []
-	width = 110
+	width = 115
 	lines.append("=" * width)
-	lines.append(" " * 40 + "GRAPHITE BENCHMARK REPORT")
-	lines.append(" " * 40 + f"Size factor: {n(bench.size)}, Runs: {bench.runs}")
+	lines.append(" " * 45 + "GRAPHITE BENCHMARK REPORT")
+	lines.append(" " * 45 + f"Size factor: {n(bench.size)}, Runs: {bench.runs}")
 	lines.append("=" * width)
-	lines.append("| Metric " + " " * 44 + "| Avg         | Min         | Max         | StDev       |")
-	lines.append("|" + "-" * 52 + "|" + ("-" * 13 + "|") * 4)
+	lines.append("| Metric " + " " * 49 + "| Avg         | Min         | Max         | StDev       |")
+	lines.append("|" + "-" * 57 + "|" + ("-" * 13 + "|") * 4)
 
 	memory_info = None
 	for name, stats in sorted(bench.results.items()):
@@ -561,7 +565,7 @@ def generate_report(bench: GraphiteBenchmarks, dump_json: bool = False) -> str:
 			mean_s = stats["mean"]
 			mean_ms = mean_s * 1000
 			lines.append(
-				f"| {name:<50} | {mean_ms:8.3f} ms | {stats['min']*1000:8.3f} ms | "
+				f"| {name:<55} | {mean_ms:8.3f} ms | {stats['min']*1000:8.3f} ms | "
 				f"{stats['max']*1000:8.3f} ms | {stats['stdev']*1000:8.3f} ms |"
 			)
 		elif isinstance(stats, dict) and "size_bytes" in stats:

@@ -14,38 +14,38 @@
 
 ## Result
 
-- Memory overhead: 124.8 MB (total: 130,895,024 B, per node: 1,309 B)
+- Memory overhead: 119.0 MB (total: 124,831,064 B, per node: 1,248 B)
 
-| Metric                                             |     Avg     |     Min     |     Max     |    StDev    |
-|:---------------------------------------------------|:-----------:|:-----------:|:-----------:|:-----------:|
-| dsl_parse(7503 lines)                              |  61.964 ms  |  58.601 ms  |  76.801 ms  |  5.418 ms   |
-| get_node(n: 100K)                                  |  0.006 ms   |  0.006 ms   |  0.007 ms   |  0.001 ms   |
-| get_nodes_of_type(n: 100K, with subtypes)          |  15.468 ms  |  12.919 ms  |  16.516 ms  |  1.041 ms   |
-| node_creation(n: 100K)                             | 301.740 ms  | 288.730 ms  | 333.709 ms  |  13.755 ms  |
-| query_avg(n: 100)                                  |  0.098 ms   |  0.091 ms   |  0.115 ms   |  0.007 ms   |
-| query_both(n: 100K, typed)                         | 195.034 ms  | 189.477 ms  | 204.606 ms  |  4.764 ms   |
-| query_count(n: 100)                                |  0.004 ms   |  0.003 ms   |  0.006 ms   |  0.001 ms   |
-| query_exclude(n: 100 + 20K)                        |  1.912 ms   |  1.724 ms   |  2.304 ms   |  0.172 ms   |
-| query_get_relations_from(n: 100K)                  |  0.011 ms   |  0.008 ms   |  0.023 ms   |  0.004 ms   |
-| query_get_relations_to(n: 100K)                    |  0.010 ms   |  0.008 ms   |  0.014 ms   |  0.002 ms   |
-| query_group_by(n: 100)                             |  0.069 ms   |  0.065 ms   |  0.074 ms   |  0.003 ms   |
-| query_incoming(n: 100K, typed)                     | 135.086 ms  | 117.255 ms  | 267.652 ms  |  46.798 ms  |
-| query_intersect(n: 100 + 20K)                      |  5.790 ms   |  5.234 ms   |  6.805 ms   |  0.540 ms   |
-| query_max(n: 100)                                  |  0.129 ms   |  0.099 ms   |  0.196 ms   |  0.040 ms   |
-| query_min(n: 100)                                  |  0.111 ms   |  0.101 ms   |  0.127 ms   |  0.008 ms   |
-| query_order_by(n: 100)                             |  0.081 ms   |  0.073 ms   |  0.090 ms   |  0.005 ms   |
-| query_outgoing(n: 100K, typed)                     | 131.143 ms  | 115.709 ms  | 241.468 ms  |  38.826 ms  |
-| query_remove_node(n: 100)                          |  43.450 ms  |  40.624 ms  |  53.300 ms  |  4.201 ms   |
-| query_set(n: 100)                                  |  0.072 ms   |  0.065 ms   |  0.085 ms   |  0.007 ms   |
-| query_sum(n: 100)                                  |  0.075 ms   |  0.067 ms   |  0.107 ms   |  0.012 ms   |
-| query_union(n: 100 + 20K)                          |  7.327 ms   |  6.687 ms   |  9.985 ms   |  0.955 ms   |
-| query_validate(n: 20K)                             |  33.920 ms  |  31.080 ms  |  45.623 ms  |  4.230 ms   |
-| query_where_lambda(n: 100K)                        |  78.284 ms  |  67.698 ms  |  82.306 ms  |  4.643 ms   |
-| query_where_string(n: 100K)                        |  78.466 ms  |  67.983 ms  |  83.883 ms  |  5.069 ms   |
-| relation_creation(r: 100K)                         | 438.663 ms  | 423.957 ms  | 457.225 ms  |  11.702 ms  |
-| schema_define_node_types(nt: 10K)                  |  67.347 ms  |  54.461 ms  |  87.304 ms  |  11.304 ms  |
-| schema_define_relation_types (rt: 5K)              |  20.182 ms  |  19.462 ms  |  20.852 ms  |  0.418 ms   |
-| serialization_load(n: 100K, r: 50K, unsafe mode)   | 791.404 ms  | 776.707 ms  | 804.799 ms  |  8.502 ms   |
-| serialization_load(n: 100K, r: 50K, validate off)  | 802.408 ms  | 787.580 ms  | 822.288 ms  |  11.478 ms  |
-| serialization_load(n: 100K, r: 50K, validate on)   | 804.917 ms  | 778.111 ms  | 819.606 ms  |  12.180 ms  |
-| serialization_save(n: 100K, r: 50K)                | 3513.375 ms | 3412.588 ms | 3663.904 ms |  84.831 ms  |
+| Metric                                                |     Avg     |     Min     |     Max     |    StDev    |
+|:------------------------------------------------------|:-----------:|:-----------:|:-----------:|:-----------:|
+| dsl_parse(7503 lines)                                 |  62.226 ms  |  61.091 ms  |  63.228 ms  |  0.759 ms   |
+| get_node(n: 100.0K)                                   |  0.005 ms   |  0.004 ms   |  0.006 ms   |  0.001 ms   |
+| get_nodes_of_type(n: 100.0K, with subtypes)           |  10.549 ms  |  10.002 ms  |  11.283 ms  |  0.378 ms   |
+| node_creation(n: 100.0K)                              | 683.150 ms  | 669.467 ms  | 703.855 ms  |  10.930 ms  |
+| query_avg(n: 100)                                     |  0.092 ms   |  0.079 ms   |  0.166 ms   |  0.026 ms   |
+| query_both(n: 100.0K, typed)                          | 182.928 ms  | 180.651 ms  | 185.288 ms  |  1.722 ms   |
+| query_count(n: 100)                                   |  0.004 ms   |  0.003 ms   |  0.004 ms   |  0.000 ms   |
+| query_exclude(n: 20.1K)                               |  1.611 ms   |  1.473 ms   |  2.359 ms   |  0.265 ms   |
+| query_get_relations_from(n: 100.0K)                   |  0.007 ms   |  0.005 ms   |  0.009 ms   |  0.001 ms   |
+| query_get_relations_to(n: 100.0K)                     |  0.007 ms   |  0.007 ms   |  0.009 ms   |  0.001 ms   |
+| query_group_by(n: 100)                                |  0.070 ms   |  0.058 ms   |  0.155 ms   |  0.030 ms   |
+| query_incoming(n: 100.0K, typed)                      | 122.587 ms  | 109.638 ms  | 227.114 ms  |  36.748 ms  |
+| query_intersect(n: 20.1K)                             |  5.381 ms   |  4.692 ms   |  6.940 ms   |  0.613 ms   |
+| query_max(n: 100)                                     |  0.098 ms   |  0.093 ms   |  0.108 ms   |  0.006 ms   |
+| query_min(n: 100)                                     |  0.131 ms   |  0.104 ms   |  0.204 ms   |  0.035 ms   |
+| query_order_by(n: 100)                                |  0.073 ms   |  0.067 ms   |  0.097 ms   |  0.009 ms   |
+| query_outgoing(n: 100.0K, typed)                      | 118.769 ms  | 106.039 ms  | 210.549 ms  |  32.293 ms  |
+| query_remove_node(n: 100)                             |  36.600 ms  |  35.747 ms  |  37.926 ms  |  0.722 ms   |
+| query_set(n: 100)                                     |  0.057 ms   |  0.055 ms   |  0.065 ms   |  0.003 ms   |
+| query_sum(n: 100)                                     |  0.071 ms   |  0.058 ms   |  0.097 ms   |  0.016 ms   |
+| query_union(n: 20.1K)                                 |  6.226 ms   |  5.853 ms   |  6.991 ms   |  0.409 ms   |
+| query_validate(n: 20.0K)                              |  28.335 ms  |  27.517 ms  |  29.526 ms  |  0.701 ms   |
+| query_where_lambda(n: 100.0K)                         |  60.840 ms  |  60.032 ms  |  62.313 ms  |  0.631 ms   |
+| query_where_string(n: 100.0K)                         |  63.303 ms  |  61.900 ms  |  64.757 ms  |  0.929 ms   |
+| relation_creation(r: 100.0K)                          | 531.875 ms  | 456.695 ms  | 626.298 ms  |  52.348 ms  |
+| schema_define_node_types(nt: 5)                       |  0.059 ms   |  0.047 ms   |  0.082 ms   |  0.012 ms   |
+| schema_define_relation_types (rt: 2)                  |  0.057 ms   |  0.038 ms   |  0.114 ms   |  0.026 ms   |
+| serialization_load(n: 100.0K, r: 50.0K, unsafe mode)  | 847.646 ms  | 841.883 ms  | 854.023 ms  |  3.453 ms   |
+| serialization_load(n: 100.0K, r: 50.0K, validate off) | 854.516 ms  | 846.302 ms  | 884.937 ms  |  11.545 ms  |
+| serialization_load(n: 100.0K, r: 50.0K, validate on)  | 985.792 ms  | 851.355 ms  | 1714.460 ms | 288.975 ms  |
+| serialization_save(n: 100.0K, r: 50.0K)               | 5416.604 ms | 4372.291 ms | 7434.451 ms | 1202.704 ms |

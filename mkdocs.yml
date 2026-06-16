@@ -26,6 +26,8 @@ nav:
       - Graph Model: graph-model.md
       - Creating Data Model: creating-data-model.md
       - Query Engine: query-engine.md
+  - Guides:
+      - Benchmarking Graphite: benchmarks.md
   - References:
       - Module-Level: references/module.md
       - DSL: references/dsl.md
