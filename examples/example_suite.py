@@ -111,6 +111,5 @@ def example_complete_dsl_loading() -> None:
 	                      .where(lambda u: u['name'] == "Joe Doe")
 	                      .outgoing("FRIEND")
 	                      .outgoing("FRIEND")
-	                      .distinct()
 	                      .get())
 	print(f"\nFriends of friends of Joe Doe: {[f['name'] for f in friends_of_friends]}")

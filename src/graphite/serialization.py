@@ -148,7 +148,7 @@ def graphite_object_hook(dct: dict[str, Any]) -> Any:
 			factory = list
 		elif factory_name == "dict":
 			factory = dict
-		result = defaultdict(factory)
+		result: dict[str, factory] = defaultdict(factory)
 		result.update(dct)
 		return result
 

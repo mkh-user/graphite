@@ -5,7 +5,7 @@ import json
 import os
 import warnings
 from collections import defaultdict
-from typing import Any
+from typing import Any, cast
 
 from typing_extensions import deprecated
 
@@ -34,8 +34,8 @@ class GraphiteEngine:
 		self.relations_by_type: dict[str, set[int]] = defaultdict(set)
 		self.relations_by_from: dict[str, set[int]] = defaultdict(set)
 		self.relations_by_to: dict[str, set[int]] = defaultdict(set)
-		self.parser = GraphiteParser()
-		self.query = QueryBuilder(self)
+		self.parser: GraphiteParser = GraphiteParser()
+		self.query: QueryBuilder = QueryBuilder(self)
 
 	# =============== SCHEMA DEFINITION ===============
 
@@ -108,7 +108,7 @@ class GraphiteEngine:
 	# =============== DATA MANIPULATION ===============
 
 	def create_node(
-		self, node_type: str, node_id: str, *values, parse_fields: bool = False
+		self, node_type: str, node_id: str, *values: Any, parse_fields: bool = False
 	) -> Node:
 		"""
 		Create a node instance
@@ -157,7 +157,7 @@ class GraphiteEngine:
 		return new_node
 
 	def create_relation(
-		self, from_id: str, to_id: str, rel_type: str, *values, parse_fields: bool = False
+		self, from_id: str, to_id: str, rel_type: str, *values: Any, parse_fields: bool = False
 	) -> Relation:
 		"""
 		Create a relation instance
@@ -290,7 +290,7 @@ class GraphiteEngine:
 				"Node",
 				node_id,
 			)
-		return self.nodes.get(node_id)
+		return self.nodes[node_id]
 
 	def get_nodes_of_type(self, node_type: str, with_subtypes: bool = True) -> set[Node]:
 		"""
@@ -329,7 +329,7 @@ class GraphiteEngine:
 				current = current.parent
 		return result
 
-	def get_relations_from(self, node_id: str, rel_type: str = None) -> set[Relation]:
+	def get_relations_from(self, node_id: str, rel_type: str | None = None) -> set[Relation]:
 		"""
 		Get relations from a node
 
@@ -353,10 +353,10 @@ class GraphiteEngine:
 
 		result_ids = self.relations_by_from[node_id]
 		if rel_type:
-			result_ids = [r for r in result_ids if r in self.relations_by_type[rel_type]]
+			result_ids = {r for r in result_ids if r in self.relations_by_type[rel_type]}
 		return {self.relations[rel_id] for rel_id in result_ids}
 
-	def get_relations_to(self, node_id: str, rel_type: str = None) -> set[Relation]:
+	def get_relations_to(self, node_id: str, rel_type: str | None = None) -> set[Relation]:
 		"""
 		Get relations to a node
 
@@ -380,7 +380,7 @@ class GraphiteEngine:
 
 		result_ids = self.relations_by_to[node_id]
 		if rel_type:
-			result_ids = [r for r in result_ids if r in self.relations_by_type[rel_type]]
+			result_ids = {r for r in result_ids if r in self.relations_by_type[rel_type]}
 		return {self.relations[rel_id] for rel_id in result_ids}
 
 	def undefine_node(self, node_type: str) -> None:
@@ -424,8 +424,9 @@ class GraphiteEngine:
 				"Relation type",
 				relation_type
 			)
-		if not _is_reverse and self.relation_types[relation_type].reverse_name:
-			self.undefine_relation(self.relation_types[relation_type].reverse_name, True)
+		reverse_name = self.relation_types[relation_type].reverse_name
+		if not _is_reverse and reverse_name:
+			self.undefine_relation(reverse_name, True)
 		self.remove_relations({self.relations[r] for r in self.relations_by_type[relation_type]})
 		del self.relation_types[relation_type]
 		self.relations_by_type.pop(relation_type)
@@ -433,6 +434,7 @@ class GraphiteEngine:
 	def remove_nodes(
 		self,
 		nodes: Node | str | set[Node | str] | list[Node | str]
+		       | set[Node] | set[str] | list[Node] | list[str]
 	) -> None:
 		"""
 		Remove given nodes and all their relations
@@ -446,21 +448,19 @@ class GraphiteEngine:
 
 		:except NotFoundError: if any node is not found
 		"""
-		if isinstance(nodes, list):
-			nodes = set(nodes)
-		elif isinstance(nodes, (str, Node)):
-			nodes = {nodes}
+		if isinstance(nodes, (str, Node)):
+			_nodes = {nodes if isinstance(nodes, str) else nodes.id}
+		else:
+			_nodes = {n if isinstance(n, str) else n.id for n in nodes}
 
-		nodes = {n if isinstance(n, str) else n.id for n in nodes}
-
-		missing = {nid for nid in nodes if nid not in self.nodes}
+		missing = {nid for nid in _nodes if nid not in self.nodes}
 		if missing:
 			raise NotFoundError("Node", f"{next(iter(missing))} (and {len(missing) - 1} others)")
 
-		relations_to_remove = self._collect_relations(nodes)
+		relations_to_remove = self._collect_relations(_nodes)
 		self.remove_relations(relations_to_remove)
 
-		for node in nodes:
+		for node in _nodes:
 			n = self.nodes.pop(node)
 			self.node_by_type[n.type_name].discard(node)
 			del self.relations_by_to[node]
@@ -484,7 +484,7 @@ class GraphiteEngine:
 		:except NotFoundError: if any relation is not found
 		"""
 		if isinstance(relations, list):
-			relations = set(relations)
+			relations = cast(set[Relation], set(relations))
 		elif isinstance(relations, Relation):
 			relations = {relations}
 

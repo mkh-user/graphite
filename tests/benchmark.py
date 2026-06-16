@@ -146,7 +146,6 @@ def create_benchmark_engine(
 	t.update()
 
 	# Populate nodes
-	nodes = []
 	for node in range(num_nodes):
 		type_idx = node % num_node_types
 		node_id = f"node_{node}"
@@ -155,8 +154,7 @@ def create_benchmark_engine(
 		str_vals = [f"str_{node}_{j}" for j in range(2)]
 		float_val = float(node % 100) / 10.0
 		# Date as days from 2020-01-01
-		date_val = date(2020, 1, 1).toordinal() + node % 10000
-		date_val = date.fromordinal(date_val)
+		date_val = date.fromordinal(date(2020, 1, 1).toordinal() + node % 10000)
 		bool_val = node % 2 == 0
 
 		values: dict[str, Any] = {
@@ -169,8 +167,7 @@ def create_benchmark_engine(
 		values["date_field"] = date_val
 		values["bool_field"] = bool_val
 
-		node = engine.create_node(f"NodeType{type_idx}", node_id, *values.values())
-		nodes.append(node)
+		engine.create_node(f"NodeType{type_idx}", node_id, *values.values())
 	t.update()
 
 	# Populate relations
@@ -366,66 +363,71 @@ class GraphiteBenchmarks: # pylint: disable=too-many-instance-attributes
 			all_nodes_result.both("RelType0")
 
 		benchmarks = [
-			[
+			(
 				f"get_node(n: {self.hsize})", engine.get_node,
 				"node_0"
-			], [
+			), (
 				f"get_nodes_of_type(n: {n(self.size)}, with subtypes)", engine.get_nodes_of_type,
 				"NodeType0", True
-			], [
+			), (
 				f"query_get_relations_from(n: {n(self.size)})", engine.get_relations_from,
 				f"node_{self.size//2}"
-			], [
+			), (
 				f"query_get_relations_to(n: {n(self.size)})", engine.get_relations_to,
 				f"node_{self.size//2}"
-			], [
+			), (
 				f"query_where_string(n: {n(self.size)})", query_where_string
-			], [
+			), (
 				f"query_where_lambda(n: {n(self.size)})", query_where_lambda
-			], [
+			), (
 				f"query_outgoing(n: {n(self.size)}, typed)", query_outgoing
-			], [
+			), (
 				f"query_incoming(n: {n(self.size)}, typed)", query_incoming
-			], [
+			), (
 				f"query_both(n: {n(self.size)}, typed)", query_both
-			], [
+			), (
 				"query_count(n: 100)", limited.count
-			], [
+			), (
 				"query_sum(n: 100)", limited.sum,
 				"int_field_0"
-			], [
+			), (
 				"query_avg(n: 100)", limited.avg,
 				"float_field"
-			], [
+			), (
 				"query_min(n: 100)", limited.min,
 				"int_field_1"
-			], [
+			), (
 				"query_max(n: 100)", limited.max,
 				"int_field_1"
-			], [
+			), (
 				"query_group_by(n: 100)", limited.group_by,
 				"bool_field"
-			], [
+			), (
 				"query_order_by(n: 100)", limited.order_by,
 				"int_field_0", True
-			], [
+			), (
 				f"query_union(n: {other_operation_size})", limited.union,
 				other
-			], [
+			), (
 				f"query_exclude(n: {other_operation_size})", limited.exclude,
 				other
-			], [
+			), (
 				f"query_intersect(n: {other_operation_size})", limited.intersect,
 				other
-			], [
+			), (
 				"query_remove_node(n: 100)", remove_result.remove,
-			], [
+			), (
 				f"query_validate(n: {n(other.count())})", other.validate
-			]
+			)
 		]
 
 		for b in benchmarks:
-			self._run_benchmark(*b)
+			if len(b) < 2:
+				raise ValueError(f"Invalid benchmark configuration {b}")
+			if len(b) == 2:
+				self._run_benchmark(b[0], b[1])
+			else:
+				self._run_benchmark(b[0], b[1], *b[2:])
 			t.update()
 
 		self._run_benchmark("query_set(n: 100)", limited.set_val, int_field_0=9999)
@@ -589,7 +591,8 @@ def generate_report(bench: GraphiteBenchmarks, dump_json: bool = False) -> str:
 # ---------------------------------------------------------------------------
 # CLI entry point
 # ---------------------------------------------------------------------------
-def main( # pylint: disable=too-many-arguments, too-many-positional-arguments, unused-argument
+# pylint: disable=too-many-arguments, too-many-positional-arguments, unused-argument
+def main(
 	size: Annotated[int, typer.Option(help="Database size (nodes)")] = 100000,
 	runs: Annotated[int, typer.Option(help="Runs to benchmark")] = 10,
 	node_types: Annotated[int, typer.Option(help="Number of node types")] = 5,
@@ -604,31 +607,31 @@ def main( # pylint: disable=too-many-arguments, too-many-positional-arguments, u
 	on_schema: Annotated[
 		bool,
 		typer.Option(help="Benchmark node type and relation type definitions")
-	] = None,
+	] = None, # ty: ignore[invalid-parameter-default]
 	on_node_creation: Annotated[
 		bool,
 		typer.Option(help="Benchmark node creation")
-	] = None,
+	] = None, # ty: ignore[invalid-parameter-default]
 	on_relation_creation: Annotated[
 		bool,
 		typer.Option(help="Benchmark relation creation")
-	] = None,
+	] = None, # ty: ignore[invalid-parameter-default]
 	on_queries: Annotated[
 		bool,
 		typer.Option(help="Benchmark queries")
-	] = None,
+	] = None, # ty: ignore[invalid-parameter-default]
 	on_serialization: Annotated[
 		bool,
 		typer.Option(help="Benchmark save and load")
-	] = None,
+	] = None, # ty: ignore[invalid-parameter-default]
 	on_dsl_parse: Annotated[
 		bool,
 		typer.Option(help="Benchmark a complete DSL parsing")
-	] = None,
+	] = None, # ty: ignore[invalid-parameter-default]
 	on_memory: Annotated[
 		bool,
 		typer.Option(help="Benchmark memory usage")
-	] = None,
+	] = None, # ty: ignore[invalid-parameter-default]
 ):
 	"""
 	Advanced benchmark suite for Graphite embedded graph database

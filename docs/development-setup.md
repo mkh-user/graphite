@@ -54,7 +54,7 @@ git checkout -b <new-branch-name>
 Always run checks before push to development branches.
 
 - Open terminal in project directory.
-- Run this command to ensure you have `pylint` and `pytest`:
+- Run this command to ensure you have `pylint`, `pytest`, and `ty`:
 ```shell
 pip install ".[dev]"
 ```
@@ -66,6 +66,10 @@ pylint $(git ls-files '*.py')
 - Run tests and unsure all are passed:
 ```shell
 pytest
+```
+- Use ty to check types:
+```shell
+ty check
 ```
 
 ### Running benchmarks

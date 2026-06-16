@@ -18,7 +18,7 @@ class ParseError(GraphiteError):
 	:param line: line number
 	:param column: column number
 	"""
-	def __init__(self, message: str, line: int = None, column: int = None):
+	def __init__(self, message: str, line: int | None = None, column: int | None = None):
 		self.line = line
 		self.column = column
 		super().__init__(message)
@@ -56,7 +56,7 @@ class ValidationError(GraphiteError):
 	:param field: field name
 	:param value: given value
 	"""
-	def __init__(self, message: str, field: str = None, value: Any = None):
+	def __init__(self, message: str, field: str, value: Any = None):
 		self.field = field
 		self.value = value
 		super().__init__(message)

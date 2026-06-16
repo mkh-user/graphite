@@ -147,7 +147,7 @@ class TestGraphiteJSONEncoder:
 
 	def test_encode_defaultdict_dict(self):
 		"""Test encoding defaultdict with dict factory"""
-		ddict = defaultdict(dict)
+		ddict: dict[str, dict] = defaultdict(dict)
 		ddict["key1"]["subkey"] = "value"
 
 		encoder = GraphiteJSONEncoder()

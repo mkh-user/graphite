@@ -4,7 +4,7 @@ Query engine and object for Graphite
 from collections import defaultdict
 from collections.abc import Callable
 from functools import reduce
-from typing import Any, TYPE_CHECKING
+from typing import Any, TYPE_CHECKING, cast
 
 from typing_extensions import deprecated
 
@@ -27,7 +27,7 @@ class QueryResult:
 	"""
 
 	def __init__(
-		self, graph_engine: 'GraphiteEngine', nodes: set[Node], edges: set[Relation] = None
+		self, graph_engine: 'GraphiteEngine', nodes: set[Node], edges: set[Relation] | None = None
 	):
 		self.engine = graph_engine
 		self.nodes = nodes
@@ -104,7 +104,7 @@ class QueryResult:
 			{relation for relation in self.edges if id(relation) in self.engine.relations},
 		)
 
-	def where(self, condition: str | Callable) -> 'QueryResult':
+	def where(self, condition: str | Callable[[Node], bool]) -> 'QueryResult':
 		"""
 		Filter nodes based on condition
 
@@ -118,9 +118,10 @@ class QueryResult:
 
 		if callable(condition):
 			# Lambda function
+			cond = cast(Callable[[Node], bool], condition)
 			for processing_node in self.nodes:
 				try:
-					if condition(processing_node):
+					if cond(processing_node):
 						filtered_nodes.add(processing_node)
 				except Exception as e:
 					raise ConditionError(str(condition)) from e
@@ -550,12 +551,15 @@ class QueryBuilder:
 	def __init__(self, graphite_engine: 'GraphiteEngine'):
 		self.engine = graphite_engine
 
-	def __getattr__(self, name: str) -> QueryResult | None:
+	def __getattr__(self, name: str) -> QueryResult:
 		"""Allow starting query from node type: engine.query.User"""
 		if name in self.engine.node_types:
 			nodes = self.engine.get_nodes_of_type(name)
 			return QueryResult(self.engine, nodes, None)
-		return None
+		raise NotFoundError(
+			"NodeType",
+			name
+		)
 
 	def all(self) -> QueryResult:
 		"""Allow starting query from all nodes"""

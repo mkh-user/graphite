@@ -43,7 +43,7 @@ class Node:
 			raise NotFoundError("Field", field_name)
 		self.values[field_name] = value
 
-	def __getitem__(self, key) -> Any:
+	def __getitem__(self, key: str) -> Any:
 		return self.get(key)
 
 	def __repr__(self) -> str:
@@ -52,7 +52,7 @@ class Node:
 	def __hash__(self) -> int:
 		return hash(self.id)
 
-	def __eq__(self, other) -> bool:
+	def __eq__(self, other: object) -> bool:
 		if not isinstance(other, Node):
 			return NotImplemented
 		return self.id == other.id
@@ -92,7 +92,7 @@ class Relation:
 			raise NotFoundError("Field", field_name)
 		self.values[field_name] = value
 
-	def __getitem__(self, key) -> Any:
+	def __getitem__(self, key: str) -> Any:
 		return self.get(key)
 
 	def __repr__(self) -> str:
@@ -101,7 +101,7 @@ class Relation:
 	def __hash__(self) -> int:
 		return hash(id(self))
 
-	def __eq__(self, other) -> bool:
+	def __eq__(self, other: object) -> bool:
 		if not isinstance(other, Relation):
 			return NotImplemented
 		return id(self) == id(other)

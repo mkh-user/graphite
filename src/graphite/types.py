@@ -57,7 +57,7 @@ class NodeType:
 		self.all_fields_cache = fields
 		return fields
 
-	def __hash__(self):
+	def __hash__(self) -> int:
 		return hash(self.name)
 
 @dataclass
@@ -75,5 +75,5 @@ class RelationType:
 	reverse_name: str | None = None
 	is_bidirectional: bool = False
 
-	def __hash__(self):
+	def __hash__(self) -> int:
 		return hash(self.name)

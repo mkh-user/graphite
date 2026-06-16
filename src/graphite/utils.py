@@ -1,18 +1,22 @@
 """
 Utility functions, accessible directly from ``graphite``
 """
+from typing import Any, TYPE_CHECKING
+
+if TYPE_CHECKING:
+	from .engine import GraphiteEngine
 
 class SecurityWarning(Warning):
 	"""A security warning."""
 
-def node(node_type: str, **fields) -> str:
+def node(node_type: str, **fields: Any) -> str:
 	"""Helper function to create node definitions"""
 	lines = [f"node {node_type}"]
 	for field_name, field_type in fields.items():
 		lines.append(f"{field_name}: {field_type}")
 	return "\n".join(lines)
 
-def relation(name: str, from_type: str, to_type: str, **kwargs) -> str:
+def relation(name: str, from_type: str, to_type: str, **kwargs: Any) -> str:
 	"""Helper function to create relation definitions"""
 	lines = [f"relation {name}"]
 	if kwargs.get('both'):
@@ -28,7 +32,7 @@ def relation(name: str, from_type: str, to_type: str, **kwargs) -> str:
 
 	return "\n".join(lines)
 
-def engine():
+def engine() -> 'GraphiteEngine':
 	"""Create graphite engine instance"""
 	from .engine import GraphiteEngine # pylint: disable=import-outside-toplevel
 	return GraphiteEngine()

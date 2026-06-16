@@ -111,7 +111,7 @@ class GraphiteParser:
 		return value
 
 	@staticmethod
-	def parse_node_definition(definition: str) -> tuple[str, list[Field], str]:
+	def parse_node_definition(definition: str) -> tuple[str, list[Field], str | None]:
 		"""
 		Parse node type definition, for example:\n
 		'''\n

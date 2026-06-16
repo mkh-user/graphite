@@ -58,6 +58,7 @@ class TestNode:
 			type_ref=node_type
 		)
 
+		assert node.type_ref is not None
 		assert node.type_ref == node_type
 		assert node.type_ref.name == "Person"
 
@@ -124,5 +125,6 @@ class TestRelation:
 			type_ref=rel_type
 		)
 
+		assert relation.type_ref is not None
 		assert relation.type_ref == rel_type
 		assert relation.type_ref.name == "WORKS_AT"
