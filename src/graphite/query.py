@@ -551,15 +551,15 @@ class QueryBuilder:
 	def __init__(self, graphite_engine: 'GraphiteEngine'):
 		self.engine = graphite_engine
 
-	def __getattr__(self, name: str) -> QueryResult:
+	def __getattribute__(self, name: str) -> QueryResult:
 		"""Allow starting query from node type: engine.query.User"""
-		if name in self.engine.node_types:
-			nodes = self.engine.get_nodes_of_type(name)
-			return QueryResult(self.engine, nodes, None)
-		raise NotFoundError(
-			"NodeType",
-			name
-		)
+		try:
+			return super().__getattribute__(name)
+		except AttributeError as e:
+			if name in self.engine.node_types:
+				nodes = self.engine.get_nodes_of_type(name)
+				return QueryResult(self.engine, nodes, None)
+			raise e
 
 	def all(self) -> QueryResult:
 		"""Allow starting query from all nodes"""

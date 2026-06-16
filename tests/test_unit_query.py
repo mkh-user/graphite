@@ -3,7 +3,7 @@ from datetime import date
 
 import pytest
 
-from src.graphite.exceptions import ConditionError, NotFoundError
+from src.graphite.exceptions import ConditionError
 
 class TestQueryBuilder:
 	"""Test QueryBuilder class"""
@@ -25,7 +25,7 @@ class TestQueryBuilder:
 		"""Test accessing non-existent node type via QueryBuilder"""
 		engine = populated_engine
 
-		with pytest.raises(NotFoundError):
+		with pytest.raises(AttributeError):
 			engine.query.NonExistent # pylint: disable=pointless-statement
 
 	def test_query_builder_all_nodes(self, populated_engine):
