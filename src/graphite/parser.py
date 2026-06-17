@@ -4,13 +4,16 @@ Parser for Graphite DSL
 import re
 import warnings
 from datetime import datetime
-from typing import Any
+from typing import Any, TYPE_CHECKING
 
 from .exceptions import (
 	DateParseError, FieldError, GraphiteError, NotFoundError, ParseError,
 	RelationTypeDefineError,
 )
 from .types import DataType, DataTypePython, Field
+
+if TYPE_CHECKING:
+	from .engine import GraphiteEngine
 
 class GraphiteParser:
 	"""Parser for Graphite DSL"""
@@ -383,3 +386,69 @@ class GraphiteParser:
 			direction = 'forward'
 
 		return from_node, to_node, rel_type, attributes, direction
+
+	def parse(self, engine: 'GraphiteEngine', data: str) -> None:
+		"""
+		Parse and load data from Graphite DSL to engine
+
+		:param engine: engine instance
+		:param data: data as Graphite DSL string
+
+		:return: None
+
+		:except ParseError: if parsing fails
+		:except NotFoundError: using any undefined object (node type, relation type, node, relation)
+		:except ValueError: if a used data type not fount
+		"""
+		lines = data.strip().split('\n')
+
+		i = 0
+		while i < len(lines):
+			line = lines[i].strip()
+			if not line or line.startswith('#'):
+				i += 1
+				continue
+
+			if line.startswith('node '):
+				# Collect multiline node definition
+				node_def = [line]
+				i += 1
+				while (
+						i < len(lines)
+						and lines[i].strip()
+						and not lines[i].strip().startswith(('node ', 'relation '))
+				):
+					if lines[i].strip().startswith('#'):
+						i += 1
+						continue
+					node_def.append(lines[i])
+					i += 1
+				engine.define_node('\n'.join(node_def))
+
+			elif line.startswith('relation '):
+				# Collect multiline relation definition
+				rel_def = [line]
+				i += 1
+				while (
+						i < len(lines)
+						and lines[i].strip()
+						and not lines[i].strip().startswith(('node ', 'relation '))
+				):
+					if lines[i].strip().startswith('#'):
+						i += 1
+						continue
+					rel_def.append(lines[i])
+					i += 1
+				engine.define_relation('\n'.join(rel_def))
+
+			elif '-[' in line and (']->' in line or ']-' in line):
+				# Relation instance
+				from_id, to_id, rel_type, values, _ = self.parse_relation_instance(line)
+				engine.create_relation(from_id, to_id, rel_type, *values, parse_fields=True)
+				i += 1
+
+			else:
+				# Node instance
+				node_type, node_id, values = self.parse_node_instance(line)
+				engine.create_node(node_type, node_id, *values, parse_fields=True)
+				i += 1

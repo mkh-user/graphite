@@ -2,15 +2,18 @@
 Serialization utils for Graphite databases
 """
 import json
+import warnings
 from collections import defaultdict
 from dataclasses import asdict, is_dataclass
 from datetime import date, datetime
 from enum import Enum
 from typing import Any, Callable
 
+from .exceptions import NotFoundError, ValidationError
 from .instances import Node, Relation
 from .types import DataType, Field, NodeType, RelationType
 
+SAVE_FILE_VERSION = "1.0"
 GRAPHITE_TYPE_FIELD = "__graphite_type__"
 DEFAULT_FACTORY_FIELD = "__default_factory"
 
@@ -193,3 +196,93 @@ def graphite_object_hook(dct: dict[str, Any]) -> Any:
 		)
 
 	return dct
+
+def _validate_loaded_data(data: dict[str, Any]) -> None:
+	"""
+	Validate loaded data for consistency
+
+	:param data: Dictionary of loaded data
+
+	:return: None
+
+	:except ValidationError: for any fail at validation
+	"""
+	if not isinstance(data, dict):
+		raise ValidationError(
+			"Loaded data must be a dictionary",
+			"data",
+			str(type(data))
+		)
+
+	required_keys = ('version', 'node_types', 'relation_types', 'nodes')
+	for key in required_keys:
+		if key not in data:
+			raise ValidationError(
+				f"Missing required key {key}",
+				key,
+				"'Missing'"
+			)
+
+	if data.get("version") != SAVE_FILE_VERSION:
+		raise ValidationError(
+			f"Save file version must be {SAVE_FILE_VERSION} not {data.get('version')}",
+			"version",
+			data.get("version")
+		)
+
+	if not isinstance(data.get('node_types'), list):
+		raise ValidationError(
+			"node_types must be a list",
+			"node_types",
+			str(type(data.get('node_types')))
+		)
+	if not isinstance(data.get('relation_types'), list):
+		raise ValidationError(
+			"relation_types must be a list",
+			"relation_types",
+			str(type(data.get('relation_types')))
+		)
+	if not isinstance(data.get('nodes'), list):
+		raise ValidationError(
+			"nodes must be a list",
+			"nodes",
+			str(type(data.get('nodes')))
+		)
+	if 'relations' in data and not isinstance(data.get('relations'), list):
+		raise ValidationError(
+			"relations must be a list",
+			"relations",
+			str(type(data.get('relations')))
+		)
+
+	# Check for unexpected keys
+	allowed_keys = ('version', 'node_types', 'relation_types', 'nodes', 'relations', 'node_by_type',
+			'relations_by_type', 'relations_by_from', 'relations_by_to')
+	for key in data.keys():
+		if key not in allowed_keys:
+			warnings.warn(f"Unexpected key in data: {key}", UserWarning, stacklevel=2)
+
+	# Validate nodes reference existing types
+	node_type_names = set()
+	for node_type in data.get('node_types', []):
+		if isinstance(node_type, NodeType):
+			node_type_names.add(node_type.name)
+		elif isinstance(node_type, dict) and 'name' in node_type:
+			node_type_names.add(node_type['name'])
+
+	for check_node in data.get('nodes', []):
+		if isinstance(check_node, Node):
+			type_name = check_node.type_name
+		elif isinstance(check_node, dict):
+			type_name = check_node.get('type_name')
+		else:
+			raise ValidationError(
+				"nodes must contain Node objects or dictionaries",
+				"nodes",
+				str(type(check_node))
+			)
+		if type_name not in node_type_names:
+			raise NotFoundError(
+				"Node type",
+				type_name,
+			)

@@ -16,10 +16,10 @@ class TestGraphiteEngineSchema:
 
 		engine.define_node(
 			"""
-        node Person
-        name: string
-        age: int
-        """
+		node Person
+		name: string
+		age: int
+		"""
 		)
 
 		assert "Person" in engine.node_types
@@ -36,19 +36,19 @@ class TestGraphiteEngineSchema:
 		# Define parent first
 		engine.define_node(
 			"""
-        node Entity
-        id: string
-        created: date
-        """
+		node Entity
+		id: string
+		created: date
+		"""
 		)
 
 		# Define child
 		engine.define_node(
 			"""
-        node User from Entity
-        username: string
-        password: string
-        """
+		node User from Entity
+		username: string
+		password: string
+		"""
 		)
 
 		assert "User" in engine.node_types
@@ -71,9 +71,9 @@ class TestGraphiteEngineSchema:
 		with pytest.raises(NotFoundError) as exc_info:
 			engine.define_node(
 				"""
-            node User from NonExistent
-            username: string
-            """
+			node User from NonExistent
+			username: string
+			"""
 			)
 
 		assert "Parent node type" in str(exc_info.value)
@@ -89,11 +89,11 @@ class TestGraphiteEngineSchema:
 
 		engine.define_relation(
 			"""
-        relation WORKS_AT
-        Person -> Company
-        position: string
-        since: date
-        """
+		relation WORKS_AT
+		Person -> Company
+		position: string
+		since: date
+		"""
 		)
 
 		assert "WORKS_AT" in engine.relation_types
@@ -114,9 +114,9 @@ class TestGraphiteEngineSchema:
 
 		engine.define_relation(
 			"""
-        relation WORKS_AT reverse EMPLOYS
-        Person -> Company
-        """
+		relation WORKS_AT reverse EMPLOYS
+		Person -> Company
+		"""
 		)
 
 		assert "WORKS_AT" in engine.relation_types
@@ -140,10 +140,10 @@ class TestGraphiteEngineSchema:
 
 		engine.define_relation(
 			"""
-        relation FRIENDS_WITH both
-        Person - Person
-        since: date
-        """
+		relation FRIENDS_WITH both
+		Person - Person
+		since: date
+		"""
 		)
 
 		rel_type = engine.relation_types["FRIENDS_WITH"]
@@ -156,9 +156,9 @@ class TestGraphiteEngineSchema:
 		with pytest.raises(NotFoundError) as exc_info:
 			engine.define_relation(
 				"""
-            relation WORKS_AT
-            Person -> Company
-            """
+			relation WORKS_AT
+			Person -> Company
+			"""
 			)
 
 		assert "Node type" in str(exc_info.value)
@@ -172,11 +172,11 @@ class TestGraphiteEngineDataManipulation:
 
 		engine.define_node(
 			"""
-        node Person
-        name: string
-        age: int
-        email: string
-        """
+		node Person
+		name: string
+		age: int
+		email: string
+		"""
 		)
 
 		node = engine.create_node("Person", "person1", "Alice", 30, "alice@email.com")
@@ -197,10 +197,10 @@ class TestGraphiteEngineDataManipulation:
 
 		engine.define_node(
 			"""
-        node Event
-        title: string
-        event_date: date
-        """
+		node Event
+		title: string
+		event_date: date
+		"""
 		)
 
 		node = engine.create_node("Event", "event1", "Conference", "2023-12-01")
@@ -216,10 +216,10 @@ class TestGraphiteEngineDataManipulation:
 
 		engine.define_node(
 			"""
-        node Event
-        title: string
-        event_date: date
-        """
+		node Event
+		title: string
+		event_date: date
+		"""
 		)
 
 		with pytest.raises(FieldError):
@@ -231,11 +231,11 @@ class TestGraphiteEngineDataManipulation:
 
 		engine.define_node(
 			"""
-        node Person
-        name: string
-        age: int
-        email: string
-        """
+		node Person
+		name: string
+		age: int
+		email: string
+		"""
 		)
 
 		with pytest.raises(InvalidPropertiesError) as exc_info:
@@ -262,11 +262,11 @@ class TestGraphiteEngineDataManipulation:
 		engine.define_node("node Company\nname: string")
 		engine.define_relation(
 			"""
-        relation WORKS_AT
-        Person -> Company
-        position: string
-        since: date
-        """
+		relation WORKS_AT
+		Person -> Company
+		position: string
+		since: date
+		"""
 		)
 
 		engine.create_node("Person", "person1", "Alice")
@@ -300,10 +300,10 @@ class TestGraphiteEngineDataManipulation:
 		engine.define_node("node Person\nname: string")
 		engine.define_relation(
 			"""
-        relation FRIENDS_WITH both
-        Person - Person
-        since: date
-        """
+		relation FRIENDS_WITH both
+		Person - Person
+		since: date
+		"""
 		)
 
 		engine.create_node("Person", "person1", "Alice")

@@ -2,9 +2,10 @@
 Runs a generic example for Graphite module.
 """
 from datetime import date
-# noinspection PyPackageRequirements
-import graphite
-# import src.graphite as graphite # Just for test dev version
+
+from src import graphite
+# Use this in your code instead:
+#import graphite
 
 engine = graphite.engine()
 

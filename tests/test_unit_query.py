@@ -3,6 +3,7 @@ from datetime import date
 
 import pytest
 
+from src.graphite import Direction
 from src.graphite.exceptions import ConditionError
 
 class TestQueryBuilder:
@@ -26,7 +27,7 @@ class TestQueryBuilder:
 		engine = populated_engine
 
 		with pytest.raises(AttributeError):
-			engine.query.NonExistent # pylint: disable=pointless-statement
+			engine.query.NonExistent.get()
 
 	def test_query_builder_all_nodes(self, populated_engine):
 		"""Test all magic getter returns all nodes."""
@@ -146,7 +147,7 @@ class TestQueryResult: # pylint: disable=too-many-public-methods
 		result = populated_engine.query.Person.where('name = "Alice"')
 
 		# Traverse WORKS_AT relation
-		works_at_result = result.traverse("WORKS_AT", "outgoing")
+		works_at_result = result.traverse("WORKS_AT", Direction.OUTGOING)
 
 		assert len(works_at_result.nodes) == 1
 		assert next(iter(works_at_result.nodes)).type_name == "Company"
@@ -293,10 +294,10 @@ class TestQueryResult: # pylint: disable=too-many-public-methods
 
 		engine.define_node(
 			"""
-        node Item
-        name: string
-        priority: int
-        """
+		node Item
+		name: string
+		priority: int
+		"""
 		)
 
 		engine.create_node("Item", "item1", "A", 2)
@@ -384,20 +385,20 @@ class TestQueryResult: # pylint: disable=too-many-public-methods
 		"""Test chaining multiple query operations"""
 		# Complex query: Get young employees who work at companies
 		result = (populated_engine.query.Person
-		          .where("age < 30")
-		          .outgoing("WORKS_AT")
-		          .order_by("founded"))
+				  .where("age < 30")
+				  .outgoing("WORKS_AT")
+				  .order_by("founded"))
 
 		assert len(result) == 1
 		assert result[0].type_name == "Company"
 
 		# Even more complex
 		complex_result = (populated_engine.query.Person
-		                  .where('name = "Alice"')
-		                  .outgoing("WORKS_AT")
-		                  .incoming("WORKS_AT")
-		                  .where("age > 20")
-		                  .limit(2, "age", True))
+						  .where('name = "Alice"')
+						  .outgoing("WORKS_AT")
+						  .incoming("WORKS_AT")
+						  .where("age > 20")
+						  .limit(2, "age", True))
 
 		# This should get all people who work at the same company as Alice
 		assert len(complex_result.nodes) == 2

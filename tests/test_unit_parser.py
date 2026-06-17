@@ -18,11 +18,11 @@ class TestGraphiteParser: # pylint: disable=attribute-defined-outside-init
 	def test_parse_node_definition_simple(self):
 		"""Test parsing simple node definition"""
 		definition = """
-        node Person
-        name: string
-        age: int
-        email: string
-        """
+		node Person
+		name: string
+		age: int
+		email: string
+		"""
 
 		node_name, fields, parent = self.parser.parse_node_definition(definition)
 
@@ -40,10 +40,10 @@ class TestGraphiteParser: # pylint: disable=attribute-defined-outside-init
 	def test_parse_node_definition_with_inheritance(self):
 		"""Test parsing node definition with inheritance"""
 		definition = """
-        node User from Entity
-        username: string
-        password: string
-        """
+		node User from Entity
+		username: string
+		password: string
+		"""
 
 		node_name, fields, parent = self.parser.parse_node_definition(definition)
 
@@ -69,11 +69,11 @@ class TestGraphiteParser: # pylint: disable=attribute-defined-outside-init
 	def test_parse_relation_definition_simple(self):
 		"""Test parsing simple relation definition"""
 		definition = """
-        relation WORKS_AT
-        Person -> Company
-        position: string
-        since: date
-        """
+		relation WORKS_AT
+		Person -> Company
+		position: string
+		since: date
+		"""
 
 		(rel_name, from_type, to_type,
 		fields, reverse_name, is_bidirectional) = self.parser.parse_relation_definition(definition)
@@ -93,10 +93,10 @@ class TestGraphiteParser: # pylint: disable=attribute-defined-outside-init
 	def test_parse_relation_definition_with_reverse(self):
 		"""Test parsing relation definition with reverse name"""
 		definition = """
-        relation WORKS_AT reverse EMPLOYS
-        Person -> Company
-        position: string
-        """
+		relation WORKS_AT reverse EMPLOYS
+		Person -> Company
+		position: string
+		"""
 
 		(rel_name, from_type, to_type,
 		_, reverse_name, is_bidirectional) = self.parser.parse_relation_definition(definition)
@@ -110,10 +110,10 @@ class TestGraphiteParser: # pylint: disable=attribute-defined-outside-init
 	def test_parse_relation_definition_bidirectional(self):
 		"""Test parsing bidirectional relation definition"""
 		definition = """
-        relation FRIENDS_WITH both
-        Person - Person
-        since: date
-        """
+		relation FRIENDS_WITH both
+		Person - Person
+		since: date
+		"""
 
 		(rel_name, from_type, to_type,
 		_, reverse_name, is_bidirectional) = self.parser.parse_relation_definition(definition)

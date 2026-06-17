@@ -97,7 +97,8 @@ engine.query.Person.outgoing("WORKS_AT")
 Equivalent to:
 
 ```python
-engine.query.Person.traverse("WORKS_AT", direction="outgoing")
+from graphite import Direction
+engine.query.Person.traverse("WORKS_AT", direction=Direction.OUTGOING)
 ```
 
 ---

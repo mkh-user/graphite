@@ -2,7 +2,7 @@
 Advanced benchmark suite for the Graphite embedded graph database.
 
 Usage:
-    python benchmark.py [--size N] [--runs M] [--output json|plain]
+	python benchmark.py [--size N] [--runs M] [--output json|plain]
 
 This script measures the performance of core Graphite operations under
 synthetic, configurable workloads. It reports timing statistics and, where
@@ -109,14 +109,14 @@ def create_benchmark_engine(
 			# Chain: Type0 -> Type1 -> Type2 ...
 			parent = f"NodeType{i-1}"
 		fields = [
-			         (f"int_field_{j}", "int") for j in range(3)
-		         ] + [
-			         (f"str_field_{j}", "string") for j in range(2)
-		         ] + [
-			         ("float_field", "float"),
-			         ("date_field", "date"),
-			         ("bool_field", "bool"),
-		         ]
+					 (f"int_field_{j}", "int") for j in range(3)
+				 ] + [
+					 (f"str_field_{j}", "string") for j in range(2)
+				 ] + [
+					 ("float_field", "float"),
+					 ("date_field", "date"),
+					 ("bool_field", "bool"),
+				 ]
 
 		engine.define_node(
 			f"node NodeType{i}" +
