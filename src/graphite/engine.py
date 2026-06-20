@@ -5,21 +5,23 @@ import json
 import os
 import warnings
 from collections import defaultdict
-from typing import Any, cast
+from typing import Any, Callable, cast
 
 from typing_extensions import deprecated
 
+from . import algorithms as _algorithms
 from .exceptions import (
 	FileSizeError, InvalidJSONError, InvalidPropertiesError, InvalidRelationError,
-	NotFoundError, SafeLoadExtensionError, TooNestedJSONError, ValidationError,
+	NotFoundError, SafeLoadExtensionError, TooNestedJSONError,
 )
 from .instances import Node, Relation
 from .parser import GraphiteParser
-from .query import QueryBuilder
-from .serialization import GraphiteJSONEncoder, graphite_object_hook
+from .query import Direction, QueryBuilder
+from .serialization import (
+	GraphiteJSONEncoder, SAVE_FILE_VERSION, _validate_loaded_data,
+	graphite_object_hook,
+)
 from .types import Field, NodeType, RelationType
-
-SAVE_FILE_VERSION = "1.0"
 
 # pylint: disable=too-many-instance-attributes, too-many-public-methods
 class GraphiteEngine:
@@ -503,15 +505,6 @@ class GraphiteEngine:
 	def remove_node(self, node: Node | str | list[Node | str]) -> None:
 		"""
 		Remove given nodes and all their relations
-
-		**Note:** When removing multiple nodes, this method is significantly faster than
-        calling it repeatedly because indexes are rebuilt only once.
-
-		:param node: List of node ID strings or node objects
-
-		:return: None
-
-		:except NotFoundError: if any node is not found
 		"""
 		return self.remove_nodes(node)
 
@@ -519,12 +512,6 @@ class GraphiteEngine:
 	def remove_relation(self, relation: Relation | set[Relation] | list[Relation]) -> None:
 		"""
 		Removes given relations
-
-		:param relation: Set, list, or one of relation objects
-
-		:return: None
-
-		:except NotFoundError: if any relation is not found
 		"""
 		return self.remove_relations(relation)
 
@@ -542,58 +529,7 @@ class GraphiteEngine:
 		:except NotFoundError: using any undefined object (node type, relation type, node, relation)
 		:except ValueError: if a used data type not fount
 		"""
-		lines = data.strip().split('\n')
-
-		i = 0
-		while i < len(lines):
-			line = lines[i].strip()
-			if not line or line.startswith('#'):
-				i += 1
-				continue
-
-			if line.startswith('node '):
-				# Collect multiline node definition
-				node_def = [line]
-				i += 1
-				while (
-						i < len(lines)
-						and lines[i].strip()
-						and not lines[i].strip().startswith(('node ', 'relation '))
-				):
-					if lines[i].strip().startswith('#'):
-						i += 1
-						continue
-					node_def.append(lines[i])
-					i += 1
-				self.define_node('\n'.join(node_def))
-
-			elif line.startswith('relation '):
-				# Collect multiline relation definition
-				rel_def = [line]
-				i += 1
-				while (
-						i < len(lines)
-						and lines[i].strip()
-						and not lines[i].strip().startswith(('node ', 'relation '))
-				):
-					if lines[i].strip().startswith('#'):
-						i += 1
-						continue
-					rel_def.append(lines[i])
-					i += 1
-				self.define_relation('\n'.join(rel_def))
-
-			elif '-[' in line and (']->' in line or ']-' in line):
-				# Relation instance
-				from_id, to_id, rel_type, values, _ = self.parser.parse_relation_instance(line)
-				self.create_relation(from_id, to_id, rel_type, *values, parse_fields=True)
-				i += 1
-
-			else:
-				# Node instance
-				node_type, node_id, values = self.parser.parse_node_instance(line)
-				self.create_node(node_type, node_id, *values, parse_fields=True)
-				i += 1
+		self.parser.parse(self, data)
 
 	@deprecated("Use parse() instead")
 	def load_dsl(self, dsl: str) -> None:
@@ -666,95 +602,12 @@ class GraphiteEngine:
 
 		# Validate structure
 		if validate_schema:
-			self._validate_loaded_data(data)
+			_validate_loaded_data(data)
 
 		# Load normally
 		self._load_from_dict(data)
 
-	# pylint: disable=too-many-branches
-	@staticmethod
-	def _validate_loaded_data(data: dict[str, Any]) -> None:
-		"""
-		Validate loaded data for consistency
-
-		:param data: Dictionary of loaded data
-
-		:return: None
-
-		:except ValidationError: for any fail at validation
-		"""
-		if not isinstance(data, dict):
-			raise ValidationError(
-				"Loaded data must be a dictionary",
-				"data",
-				str(type(data))
-			)
-
-		required_keys = ('version', 'node_types', 'relation_types', 'nodes')
-		for key in required_keys:
-			if key not in data:
-				raise ValidationError(
-					f"Missing required key {key}",
-					key,
-					"'Missing'"
-				)
-
-		if data.get("version") != SAVE_FILE_VERSION:
-			raise ValidationError(
-				f"Save file version must be {SAVE_FILE_VERSION} not {data.get('version')}",
-				"version",
-				data.get("version")
-			)
-
-		if not isinstance(data.get('node_types'), list):
-			raise ValidationError(
-				"node_types must be a list",
-				"node_types",
-				str(type(data.get('node_types')))
-			)
-		if not isinstance(data.get('relation_types'), list):
-			raise ValidationError(
-				"relation_types must be a list",
-				"relation_types",
-				str(type(data.get('relation_types')))
-			)
-		if not isinstance(data.get('nodes'), list):
-			raise ValidationError(
-				"nodes must be a list",
-				"nodes",
-				str(type(data.get('nodes')))
-			)
-		if 'relations' in data and not isinstance(data.get('relations'), list):
-			raise ValidationError(
-				"relations must be a list",
-				"relations",
-				str(type(data.get('relations')))
-			)
-
-		# Check for unexpected keys
-		allowed_keys = ('version', 'node_types', 'relation_types', 'nodes', 'relations', 'node_by_type',
-				'relations_by_type', 'relations_by_from', 'relations_by_to')
-		for key in data.keys():
-			if key not in allowed_keys:
-				warnings.warn(f"Unexpected key in data: {key}", UserWarning)
-
-		# Validate nodes reference existing types
-		node_type_names = set()
-		for node_type in data.get('node_types', []):
-			if isinstance(node_type, NodeType):
-				node_type_names.add(node_type.name)
-			elif isinstance(node_type, dict) and 'name' in node_type:
-				node_type_names.add(node_type['name'])
-
-		for check_node in data.get('nodes', []):
-			type_name = check_node.type_name if isinstance(check_node, Node) else check_node.get('type_name')
-			if type_name not in node_type_names:
-				raise NotFoundError(
-					"Node type",
-					type_name,
-				)
-
-	# pylint: disable=too-many-locals
+	# pylint: disable=too-many-locals, too-many-branches
 	def _load_from_dict(self, data: dict[str, Any]) -> None:
 		"""
 		Internal method to load from dictionary (used by both load and load_safe)
@@ -960,3 +813,169 @@ class GraphiteEngine:
 			'nodes'         : len(self.nodes),
 			'relations'     : len(self.relations),
 		}
+
+	# ================== ALGORITHMS =================
+
+	def bfs( # pylint: disable=too-many-arguments, too-many-positional-arguments
+		self,
+		start: Node | str,
+		end: Node | str | Callable[[list[tuple[Relation, Node]]], bool] | None = None,
+		stop_at_first: bool = True,
+		direction: Direction = Direction.OUTGOING,
+		relation_type: str | None = None,
+		max_depth: int | None = None,
+		include_start: bool = False,
+		allow_direction_switch: bool = False,
+		visited: set[str] | None = None,
+		max_results: int | None = None
+	) -> list[tuple[str, int, list[tuple[Relation, Node]]]]:
+		"""
+		Highly customizable Breadth-First Search in graph
+
+		Note: Steps are sorted by distance (it's logical order too). When using INCOMING or BOTH
+		directions, results contain founded paths with a pattern like this:
+		``'end', depth_int, [(Relation(Type:other->start), Node(Type:other)), ...,
+		(Relation(Type:end->another), Node(Type:end))]``
+
+		:param start: Starting node
+		:param end: End target, node, node ID, or a callable ((path) -> bool) to match on path
+		:param stop_at_first: If True and ``end`` is provided, stops at first match
+		:param direction: Direction to traverse
+		:param relation_type: Type of relations to traverse
+		:param max_depth: Maximum depth to traverse
+		:param include_start: If True check starting node on result
+		:param allow_direction_switch: If True allow direction switch in a path when ``direction =
+		Direction.BOTH``
+		:param visited: Optional visited set to ignore
+		:param max_results: Maximum number of results to return
+		:return: An empty list or a list of found paths with each item as: (node_id, path_depth,
+		list(path_steps)), where ``path_steps`` is (relation, node)
+		"""
+		return _algorithms.bfs(
+			self, start, end, stop_at_first, direction, relation_type, max_depth, include_start,
+			allow_direction_switch, visited, max_results
+		)
+
+	def shortest_path( # pylint: disable=too-many-positional-arguments, too-many-arguments
+		self,
+		from_node: Node | str,
+		to_end: Node | str | Callable[[list[tuple[Relation, Node]]], bool] | None = None,
+		direction: Direction = Direction.OUTGOING,
+		relation_type: str | None = None,
+		max_depth: int | None = None,
+		allow_direction_switch: bool = False,
+		ignore_nodes: set[str] | None = None,
+		weight: str | None = None
+	) -> tuple[str, int, list[tuple[Relation, Node]]] | None:
+		"""
+		Shortest path from ``from_node`` to ``to_end``
+
+		Non-weighted mode uses BFS. Weighted mode is not implemented yet.
+
+		:param from_node: Starting node
+		:param to_end: End node, node ID, or function to call (list(steps) -> bool) or None to get one
+		of nearest neighbors
+		:param direction: Direction to traverse
+		:param relation_type: Type of relations to traverse
+		:param max_depth: Maximum depth to traverse
+		:param allow_direction_switch: If True allow direction switch in a path when ``direction =
+		Direction.BOTH``
+		:param ignore_nodes: Nodes to ignore
+		:param weight: Optional field name to weighted pathfinding (Not implemented yet)
+		:return: Target node ID, Distance, List of steps where each step is a (Relation, Node) pair
+		"""
+		return _algorithms.shortest_path(
+			self, from_node, to_end, direction, relation_type, max_depth, allow_direction_switch,
+			ignore_nodes, weight
+		)
+
+	def all_shortest_paths( # pylint: disable=too-many-positional-arguments, too-many-arguments
+		self,
+		from_node: Node | str,
+		to_end: Node | str | Callable[[list[tuple[Relation, Node]]], bool] | None = None,
+		direction: Direction = Direction.OUTGOING,
+		relation_type: str | None = None,
+		max_depth: int | None = None,
+		allow_direction_switch: bool = False,
+		ignore_nodes: set[str] | None = None,
+		weight: str | None = None
+	) -> list[tuple[str, int, list[tuple[Relation, Node]]]]:
+		"""
+		All shortest paths from ``from_node`` to ``to_end``
+
+		Non-weighted mode uses BFS. Weighted mode is not implemented yet.
+
+		:param from_node: Starting node
+		:param to_end: End node, node ID, or function to call (list(steps) -> bool) or None to match
+		:param direction: Direction to traverse
+		:param relation_type: Relation types to traverse
+		:param max_depth: Maximum depth to traverse
+		:param allow_direction_switch: If True allow direction switch in a path when ``direction =
+		Direction.BOTH``
+		:param ignore_nodes: Nodes to ignore
+		:param weight: Optional weight field name to weighted pathfinding (Not implemented yet)
+		:return: List of result paths like shortest_path(), where items are sorted by distance / cost
+		and cycles are trimmed
+		"""
+		return _algorithms.all_shortest_paths(
+			self, from_node, to_end, direction, relation_type, max_depth, allow_direction_switch,
+			ignore_nodes, weight
+		)
+
+	def connected_components( # pylint: disable=too-many-positional-arguments, too-many-arguments
+		self,
+		nodes: Node | str | set[Node | str] | None = None,
+		return_all_nodes: bool = False,
+		direction: Direction = Direction.OUTGOING,
+		relation_type: str | None = None,
+		allow_direction_switch: bool = False,
+		ignore_nodes: set[str] | None = None
+	) -> list[set[str]]:
+		"""
+		Split given nodes to connected components
+
+		:param nodes: One or a set of nodes / node IDs to group, or None to get all nodes from engine
+		:param return_all_nodes: If True return all nodes in component, not just intersection with
+		``nodes``
+		:param direction: Direction to traverse
+		:param relation_type: Type of relations to traverse
+		:param allow_direction_switch: If True allow direction switch in a path when ``direction =
+		Direction.BOTH``
+		:param ignore_nodes: Nodes to ignore
+		:return: List of component nodes
+		"""
+		return _algorithms.connected_components(
+			self, nodes, return_all_nodes, direction, relation_type, allow_direction_switch,
+			ignore_nodes
+		)
+
+	def neighborhood( # pylint: disable=too-many-positional-arguments, too-many-arguments
+		self,
+		start: Node | str,
+		max_distance: int | None = None,
+		filter_method: Callable[[list[tuple[Relation, Node]]], bool] | None = None,
+		max_results: int | None = None,
+		direction: Direction = Direction.OUTGOING,
+		relation_type: str | None = None,
+		allow_direction_switch: bool = False,
+		ignore_nodes: set[str] | None = None
+	) -> tuple[set[tuple[Node, int]], set[Relation]]:
+		"""
+		Get neighbors of ``start`` in given ``max_distance``
+
+		:param start: Starting node object or ID
+		:param max_distance: Maximum distance to traverse
+		:param filter_method: Optional callable to filter neighbors
+		:param max_results: Maximum number of results to return
+		:param direction: Direction to traverse
+		:param relation_type: Type of relations to traverse
+		:param allow_direction_switch: If True allow direction switch in a path when ``direction =
+		Direction.BOTH``
+		:param ignore_nodes: Nodes to ignore
+		:return: Set of neighbors (including ``start``) with their distance to ``start``, and set of
+		relations in neighborhood
+		"""
+		return _algorithms.neighborhood(
+			self, start, max_distance, filter_method, max_results, direction, relation_type,
+			allow_direction_switch, ignore_nodes
+		)

@@ -1,9 +1,10 @@
 """
 Example usages of Graphite in separate functions. You can run a function to see its result.
 """
-# noinspection PyPackageRequirements
-import graphite
-# import src.graphite as graphite # Just for test dev version
+
+from src import graphite
+# Use this in your code instead:
+#import graphite
 
 # =============== EXAMPLE COMPLETE DSL LOADING ===============
 

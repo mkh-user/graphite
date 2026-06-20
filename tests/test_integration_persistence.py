@@ -139,29 +139,29 @@ class TestPersistenceIntegration:
 		# Create complex schema
 		engine.define_node(
 			"""
-        node User
-        name: string
-        metadata: string
-        scores: string
-        """
+		node User
+		name: string
+		metadata: string
+		scores: string
+		"""
 		)
 
 		engine.define_node(
 			"""
-        node Group
-        name: string
-        settings: string
-        """
+		node Group
+		name: string
+		settings: string
+		"""
 		)
 
 		engine.define_relation(
 			"""
-        relation MEMBER_OF
-        User -> Group
-        role: string
-        joined: date
-        permissions: string
-        """
+		relation MEMBER_OF
+		User -> Group
+		role: string
+		joined: date
+		permissions: string
+		"""
 		)
 
 		# Create data with special characters

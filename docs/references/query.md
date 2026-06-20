@@ -37,7 +37,7 @@ Filter nodes based on type
 
 Filter nodes with given fields
 
-## `traverse(relation_type: Optional[str] = None, direction: str = 'outgoing') -> QueryResult`
+## `traverse(relation_type: Optional[str] = None, direction: Direction = Direction.OUTGOING) -> QueryResult`
 
 Traverse relations from current nodes
 Returns a new query result with connected nodes and traversed relations

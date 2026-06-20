@@ -11,58 +11,58 @@ class TestDSLIntegration:
 		engine = clean_engine
 
 		dsl = """
-        # Node type definitions
-        node Person
-        name: string
-        age: int
-        email: string
+		# Node type definitions
+		node Person
+		name: string
+		age: int
+		email: string
 
-        node Company
-        name: string
-        founded: date
-        employees: int
+		node Company
+		name: string
+		founded: date
+		employees: int
 
-        node Project
-        title: string
-        budget: float
-        active: bool
+		node Project
+		title: string
+		budget: float
+		active: bool
 
-        # Relation type definitions
-        relation WORKS_AT
-        Person -> Company
-        position: string
-        since: date
+		# Relation type definitions
+		relation WORKS_AT
+		Person -> Company
+		position: string
+		since: date
 
-        relation MANAGES
-        Person -> Project
-        role: string
+		relation MANAGES
+		Person -> Project
+		role: string
 
-        relation FRIENDS_WITH both
-        Person - Person
-        since: date
+		relation FRIENDS_WITH both
+		Person - Person
+		since: date
 
-        # Data instances
-        Person, person1, "Alice", 30, "alice@email.com"
-        Person, person2, "Bob", 25, "bob@email.com"
-        Person, person3, "Charlie", 35, "charlie@email.com"
+		# Data instances
+		Person, person1, "Alice", 30, "alice@email.com"
+		Person, person2, "Bob", 25, "bob@email.com"
+		Person, person3, "Charlie", 35, "charlie@email.com"
 
-        Company, company1, "TechCorp", "2020-01-01", 500
-        Company, company2, "StartupInc", "2022-03-15", 50
+		Company, company1, "TechCorp", "2020-01-01", 500
+		Company, company2, "StartupInc", "2022-03-15", 50
 
-        Project, project1, "Alpha", 100000.50, true
-        Project, project2, "Beta", 75000.00, false
+		Project, project1, "Alpha", 100000.50, true
+		Project, project2, "Beta", 75000.00, false
 
-        # Relation instances
-        person1 -[WORKS_AT, "Engineer", "2021-03-15"]-> company1
-        person2 -[WORKS_AT, "Manager", "2020-06-01"]-> company1
-        person3 -[WORKS_AT, "CEO", "2022-01-01"]-> company2
+		# Relation instances
+		person1 -[WORKS_AT, "Engineer", "2021-03-15"]-> company1
+		person2 -[WORKS_AT, "Manager", "2020-06-01"]-> company1
+		person3 -[WORKS_AT, "CEO", "2022-01-01"]-> company2
 
-        person1 -[MANAGES, "Lead"]-> project1
-        person2 -[MANAGES, "Coordinator"]-> project2
+		person1 -[MANAGES, "Lead"]-> project1
+		person2 -[MANAGES, "Coordinator"]-> project2
 
-        person2 -[FRIENDS_WITH, "2020-08-10"]- person3
-        person1 -[FRIENDS_WITH, "2019-05-20"]- person2
-        """
+		person2 -[FRIENDS_WITH, "2020-08-10"]- person3
+		person1 -[FRIENDS_WITH, "2019-05-20"]- person2
+		"""
 
 		engine.parse(dsl)
 
@@ -104,21 +104,21 @@ class TestDSLIntegration:
 		engine = clean_engine
 
 		dsl = """
-        node Entity
-        id: string
-        created: date
+		node Entity
+		id: string
+		created: date
 
-        node User from Entity
-        username: string
-        password: string
+		node User from Entity
+		username: string
+		password: string
 
-        node Admin from User
-        permissions: string
+		node Admin from User
+		permissions: string
 
-        Entity, ent1, "entity_1", "2023-01-01"
-        User, user1, "user_1", "2023-02-01", "john", "pass123"
-        Admin, admin1, "admin_1", "2023-03-01", "admin", "admin123", "all"
-        """
+		Entity, ent1, "entity_1", "2023-01-01"
+		User, user1, "user_1", "2023-02-01", "john", "pass123"
+		Admin, admin1, "admin_1", "2023-03-01", "admin", "admin123", "all"
+		"""
 
 		engine.parse(dsl)
 
@@ -143,26 +143,26 @@ class TestDSLIntegration:
 		engine = clean_engine
 
 		dsl = """
-        # This is a comment
+		# This is a comment
 
-        node Person
-          # person's name
-          name: string
-          # person's age
-          age: int 
-
-
-        # Another comment
-        node Company
-        name: string
-        founded: date
+		node Person
+		  # person's name
+		  name: string
+		  # person's age
+		  age: int 
 
 
-        Person, p1, "Alice", 30
-        Person, p2, "Bob", 25
+		# Another comment
+		node Company
+		name: string
+		founded: date
 
-        Company, c1, "TechCorp", "2020-01-01"
-        """
+
+		Person, p1, "Alice", 30
+		Person, p2, "Bob", 25
+
+		Company, c1, "TechCorp", "2020-01-01"
+		"""
 
 		engine.parse(dsl)
 
@@ -175,29 +175,29 @@ class TestDSLIntegration:
 		engine = clean_engine
 
 		dsl = """node Person
-        name: string
-        age: int
-        email: string
+		name: string
+		age: int
+		email: string
 
-        node Company
-        name: string
-        founded: date
-        employees: int
-        industry: string
-        location: string
+		node Company
+		name: string
+		founded: date
+		employees: int
+		industry: string
+		location: string
 
-        relation WORKS_AT
-        Person -> Company
-        position: string
-        department: string
-        since: date
-        salary: float
+		relation WORKS_AT
+		Person -> Company
+		position: string
+		department: string
+		since: date
+		salary: float
 
-        Person, p1, "Alice", 30, "alice@email.com"
-        Company, c1, "TechCorp", "2020-01-01", 500, "Technology", "SF"
+		Person, p1, "Alice", 30, "alice@email.com"
+		Company, c1, "TechCorp", "2020-01-01", 500, "Technology", "SF"
 
-        p1 -[WORKS_AT, "Engineer", "Engineering", "2021-03-15", 85000.50]-> c1
-        """
+		p1 -[WORKS_AT, "Engineer", "Engineering", "2021-03-15", 85000.50]-> c1
+		"""
 
 		engine.parse(dsl)
 
@@ -222,13 +222,13 @@ class TestDSLIntegration:
 		engine = clean_engine
 
 		dsl = """
-        node Person
-        name: string
-        age: int
+		node Person
+		name: string
+		age: int
 
-        Person, p1, "Alice", 30
-        Person, p2, "Bob", 25
-        """
+		Person, p1, "Alice", 30
+		Person, p2, "Bob", 25
+		"""
 
 		engine.parse(dsl)  # Should be same as load_dsl
 

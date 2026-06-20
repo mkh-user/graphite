@@ -10,7 +10,7 @@ from .engine import GraphiteEngine
 from .instances import Node, Relation
 from .migration import Migration
 from .parser import GraphiteParser
-from .query import QueryBuilder, QueryResult
+from .query import QueryBuilder, QueryResult, Direction
 from .serialization import GraphiteJSONEncoder
 from .types import DataType, Field, NodeType, RelationType
 from .utils import SecurityWarning, engine, node, relation
@@ -18,9 +18,12 @@ from .utils import SecurityWarning, engine, node, relation
 simplefilter('always', SecurityWarning)
 
 __all__ = [
+    'GraphiteEngine',
+    'Node', 'Relation',
+    'Migration',
+    'GraphiteParser',
+    'QueryBuilder', 'QueryResult', 'Direction',
+    'GraphiteJSONEncoder',
     'DataType', 'Field', 'NodeType', 'RelationType',
-    'Node', 'Relation', 'GraphiteJSONEncoder',
-    'GraphiteParser', 'QueryResult', 'QueryBuilder',
-    'GraphiteEngine', 'Migration', 'SecurityWarning',
-    'node', 'relation', 'engine'
+    'SecurityWarning', 'engine', 'node', 'relation',
 ]

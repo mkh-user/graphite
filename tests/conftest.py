@@ -26,47 +26,47 @@ def populated_engine():
 	# Define node types
 	engine.define_node(
 		"""
-    node Person
-    name: string
-    age: int
-    email: string
-    """
+	node Person
+	name: string
+	age: int
+	email: string
+	"""
 	)
 
 	engine.define_node(
 		"""
-    node Company
-    name: string
-    founded: date
-    employees: int
-    """
+	node Company
+	name: string
+	founded: date
+	employees: int
+	"""
 	)
 
 	engine.define_node(
 		"""
-    node Project
-    title: string
-    budget: float
-    active: bool
-    """
+	node Project
+	title: string
+	budget: float
+	active: bool
+	"""
 	)
 
 	# Define relation types
 	engine.define_relation(
 		"""
-    relation WORKS_AT
-    Person -> Company
-    position: string
-    since: date
-    """
+	relation WORKS_AT
+	Person -> Company
+	position: string
+	since: date
+	"""
 	)
 
 	engine.define_relation(
 		"""
-    relation MANAGES
-    Person -> Project
-    role: string
-    """
+	relation MANAGES
+	Person -> Project
+	role: string
+	"""
 	)
 
 	# Create nodes
@@ -101,26 +101,26 @@ def engine_with_inheritance():
 
 	engine.define_node(
 		"""
-    node Entity
-    id: string
-    created: date
-    """
+	node Entity
+	id: string
+	created: date
+	"""
 	)
 
 	engine.define_node(
 		"""
-    node User from Entity
-    username: string
-    password: string
-    active: bool
-    """
+	node User from Entity
+	username: string
+	password: string
+	active: bool
+	"""
 	)
 
 	engine.define_node(
 		"""
-    node Admin from User
-    permissions: string
-    """
+	node Admin from User
+	permissions: string
+	"""
 	)
 
 	engine.create_node("Entity", "ent1", "base_entity", "2023-01-01")

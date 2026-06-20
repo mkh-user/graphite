@@ -3,6 +3,7 @@ Query engine and object for Graphite
 """
 from collections import defaultdict
 from collections.abc import Callable
+from enum import Enum
 from functools import reduce
 from typing import Any, TYPE_CHECKING, cast
 
@@ -15,6 +16,12 @@ from .types import RelationType
 
 if TYPE_CHECKING:
 	from .engine import GraphiteEngine
+
+class Direction(Enum):
+	"""Traverse direction types"""
+	OUTGOING = "outgoing"
+	INCOMING = "incoming"
+	BOTH = "both"
 
 # pylint: disable=too-many-public-methods
 class QueryResult:
@@ -33,7 +40,6 @@ class QueryResult:
 		self.nodes = nodes
 		self.edges: set[Relation] = edges or set()
 		self.current_relation: RelationType | None = None
-		self.direction: str = 'outgoing'
 
 	def set_val(self, **values: Any) -> 'QueryResult':
 		"""
@@ -205,7 +211,7 @@ class QueryResult:
 		)
 
 	def traverse(
-		self, relation_type: str | None = None, direction: str = 'outgoing'
+		self, relation_type: str | None = None, direction: Direction = Direction.OUTGOING
 	) -> 'QueryResult':
 		"""
 		Traverse relations from current nodes
@@ -229,20 +235,22 @@ class QueryResult:
 			)
 
 		for processing_node in self.nodes:
-			if direction == 'outgoing':
+			if direction in (Direction.OUTGOING, Direction.OUTGOING.value):
 				edges = self.engine.get_relations_from(processing_node.id, relation_type)
-			elif direction == 'incoming':
+			elif direction in (Direction.INCOMING, Direction.INCOMING.value):
 				edges = self.engine.get_relations_to(processing_node.id, relation_type)
-			else: # both
+			elif direction in (Direction.BOTH, Direction.BOTH.value):
 				edges = (self.engine.get_relations_from(processing_node.id, relation_type).union(
 					self.engine.get_relations_to(processing_node.id, relation_type)
 				))
+			else:
+				raise NotImplementedError(direction)
 
 			result_edges.update(edges)
 			for edge in edges:
-				if direction == 'outgoing':
+				if direction == Direction.OUTGOING:
 					target_id = edge.to_node
-				elif direction == 'incoming':
+				elif direction == Direction.INCOMING:
 					target_id = edge.from_node
 				else:
 					target_id = (
@@ -265,7 +273,7 @@ class QueryResult:
 
 		:return: a new query with result nodes and traversed relations
 		"""
-		return self.traverse(relation_type, 'outgoing')
+		return self.traverse(relation_type, Direction.OUTGOING)
 
 	def incoming(self, relation_type: str | None = None) -> 'QueryResult':
 		"""
@@ -275,7 +283,7 @@ class QueryResult:
 
 		:return: a new query with result nodes and traversed relations
 		"""
-		return self.traverse(relation_type, 'incoming')
+		return self.traverse(relation_type, Direction.INCOMING)
 
 	def both(self, relation_type: str | None = None) -> 'QueryResult':
 		"""
@@ -285,7 +293,7 @@ class QueryResult:
 
 		:return: a new query with result nodes and traversed relations
 		"""
-		return self.traverse(relation_type, 'both')
+		return self.traverse(relation_type, Direction.BOTH)
 
 	def limit(
 		self,
