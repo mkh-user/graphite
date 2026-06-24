@@ -16,8 +16,7 @@ import statistics
 import sys
 import time
 from datetime import date
-from typing import Any
-from typing import Annotated
+from typing import Annotated, Any
 
 try:
 	from pympler import asizeof
@@ -33,6 +32,7 @@ try:
 	# Add parent directory to path (assumes benchmark is inside the package or next to it)
 	sys.path.insert(0, os.path.abspath('..'))
 	from src.graphite import DataType, Field, NodeType, GraphiteEngine
+
 	print("Source of Graphite found, using latest dev version")
 except ImportError:
 	print("Using installed Graphite version...")
@@ -56,7 +56,7 @@ def timed_call(func, *args, _iterations: int, _setup=None, **kwargs) -> dict[str
 		elapsed = time.perf_counter() - start
 		times.append(elapsed)
 	if not times:
-		return {"mean": 0.0, "min": 0.0, "max": 0.0, "stdev": 0.0, "iterations": 0}
+		return { "mean": 0.0, "min": 0.0, "max": 0.0, "stdev": 0.0, "iterations": 0 }
 	return {
 		"mean": statistics.mean(times),
 		"min": min(times),
@@ -88,12 +88,12 @@ def n(num: float) -> str:
 # Data generation for benchmarks
 # ---------------------------------------------------------------------------
 # pylint: disable=too-many-locals
+# Reason: Building a customized engine with low-level API needs current complexity.
 def create_benchmark_engine(
 	num_node_types: int,
 	num_relation_types: int,
 	num_nodes: int,
-	num_relations: int,
-	inheritance_depth: int,
+	num_relations: int
 ) -> GraphiteEngine:
 	"""
 	Build an engine with a synthetic schema and populate it with nodes and relations.
@@ -104,23 +104,18 @@ def create_benchmark_engine(
 	# Define node types with a simple inheritance chain
 	t = tqdm(total=4, desc="Creating benchmark engine", leave=False)
 	for i in range(num_node_types):
-		parent = None
-		if inheritance_depth > 1 and i > 0:
-			# Chain: Type0 -> Type1 -> Type2 ...
-			parent = f"NodeType{i-1}"
 		fields = [
-					 (f"int_field_{j}", "int") for j in range(3)
-				 ] + [
-					 (f"str_field_{j}", "string") for j in range(2)
-				 ] + [
-					 ("float_field", "float"),
-					 ("date_field", "date"),
-					 ("bool_field", "bool"),
-				 ]
+			         (f"int_field_{j}", "int") for j in range(3)
+		         ] + [
+			         (f"str_field_{j}", "string") for j in range(2)
+		         ] + [
+			         ("float_field", "float"),
+			         ("date_field", "date"),
+			         ("bool_field", "bool"),
+		         ]
 
 		engine.define_node(
 			f"node NodeType{i}" +
-			(f" from {parent}" if parent else "") +
 			"\n" +
 			"\n".join([f"{field[0]}: {field[1]}" for field in fields])
 		)
@@ -129,7 +124,7 @@ def create_benchmark_engine(
 	# Define relation types
 	for i in range(num_relation_types):
 		from_type = f"NodeType{i % num_node_types}"
-		to_type = f"NodeType{(i+1) % num_node_types}"
+		to_type = f"NodeType{(i + 1) % num_node_types}"
 		fields = [
 			("weight", "float"),
 			("label", "string"),
@@ -160,9 +155,11 @@ def create_benchmark_engine(
 		values: dict[str, Any] = {
 			f"int_field_{j}": int_vals[j] for j in range(3)
 		}
-		values.update({
-			f"str_field_{j}": str_vals[j] for j in range(2)
-		})
+		values.update(
+			{
+				f"str_field_{j}": str_vals[j] for j in range(2)
+			}
+		)
 		values["float_field"] = float_val
 		values["date_field"] = date_val
 		values["bool_field"] = bool_val
@@ -177,7 +174,7 @@ def create_benchmark_engine(
 		rel_type_obj = engine.relation_types[rel_type_name]
 		from_id = next(iter(engine.node_by_type[rel_type_obj.from_type]))
 		to_id = next(iter(engine.node_by_type[rel_type_obj.to_type]))
-		values = {"weight": float(r % 100) / 100.0, "label": f"edge_{r}"}
+		values = { "weight": float(r % 100) / 100.0, "label": f"edge_{r}" }
 		engine.create_relation(from_id, to_id, rel_type_name, *values.values())
 	t.update()
 	t.close()
@@ -187,18 +184,20 @@ def create_benchmark_engine(
 # ---------------------------------------------------------------------------
 # Benchmark class
 # ---------------------------------------------------------------------------
-class GraphiteBenchmarks: # pylint: disable=too-many-instance-attributes
+# pylint: disable=too-many-instance-attributes
+# Reason: Additional attributes provide pre-calculated values based on configuration.
+class GraphiteBenchmarks:
 	"""Collection of micro-benchmarks for Graphite."""
 
 	# pylint: disable=too-many-arguments, too-many-positional-arguments
+	# Reason: This is actually 5 (correct)
 	def __init__(
 		self,
 		size: int,
 		runs: int,
 		node_types: int,
 		relation_types: int,
-		relations_ratio: float,
-		inheritance_depth: int,
+		relations_ratio: float
 	):
 		self.size = size
 		self.hsize = n(size)
@@ -207,8 +206,7 @@ class GraphiteBenchmarks: # pylint: disable=too-many-instance-attributes
 		self.relation_types = relation_types
 		self.relations_ratio = relations_ratio
 		self.relations_count = int(size * relations_ratio)
-		self.inheritance_depth = inheritance_depth
-		self.results: dict[str, Any] = {}
+		self.results: dict[str, Any] = { }
 
 	def _run_benchmark(self, name: str, func, *args, _setup=None, **kwargs):
 		"""Execute a timed call and store the result."""
@@ -222,8 +220,7 @@ class GraphiteBenchmarks: # pylint: disable=too-many-instance-attributes
 			self.node_types,
 			self.relation_types,
 			self.size,
-			self.relations_count,
-			self.inheritance_depth,
+			self.relations_count
 		)
 
 	def benchmark_all(self):
@@ -250,7 +247,7 @@ class GraphiteBenchmarks: # pylint: disable=too-many-instance-attributes
 			for i in range(n_types):
 				parent = None
 				if i % 5 == 0 and i > 0:
-					parent = f"node_type_{i-1}"
+					parent = f"node_type_{i - 1}"
 				fields = "int_field: int\nstr_field: string\nfloat_field: float"
 				if parent:
 					definition = f"node node_type_{i} from {parent}\n{fields}"
@@ -266,10 +263,13 @@ class GraphiteBenchmarks: # pylint: disable=too-many-instance-attributes
 			eng = GraphiteEngine()
 			# Predefine a few node types
 			for i in range(min(n_types, 10)):
-				eng.node_types[f"node_type_{i}"] = NodeType(f"node_type_{i}", [Field("x", DataType.INT)])
+				eng.node_types[f"node_type_{i}"] = NodeType(
+					f"node_type_{i}",
+					[Field("x", DataType.INT)]
+				)
 			for i in range(max(1, n_types // 2)):
 				from_t = f"node_type_{i % 10}"
-				to_t = f"node_type_{(i+1) % 10}"
+				to_t = f"node_type_{(i + 1) % 10}"
 				definition = f"relation Rel_{i}\n{from_t} -> {to_t}\nweight: float"
 				eng.define_relation(definition)
 
@@ -285,7 +285,7 @@ class GraphiteBenchmarks: # pylint: disable=too-many-instance-attributes
 		"""Create nodes in an already-defined engine."""
 		# Build a tiny engine with schema to reuse
 		engine = create_benchmark_engine(
-			self.node_types, self.relation_types, 0, 0, 1
+			self.node_types, self.relation_types, 0, 0
 		)
 
 		t = tqdm(total=1, desc="Benchmark: Node Creation", leave=False)
@@ -293,9 +293,11 @@ class GraphiteBenchmarks: # pylint: disable=too-many-instance-attributes
 		def create_many_nodes():
 			# Create nodes of a specific type
 			for i in trange(self.size, desc="Creating nodes", leave=False):
-				engine.create_node("NodeType0", f"tmp_node_{i}",
-					i, i*2+1, i*3, f"str_{i}", f"data_{i}",
-					float(i)/10.0, date(2023, 1, 1), True)
+				engine.create_node(
+					"NodeType0", f"tmp_node_{i}",
+					i, i * 2 + 1, i * 3, f"str_{i}", f"data_{i}",
+					float(i) / 10.0, date(2023, 1, 1), True
+				)
 
 		def setup_clean():
 			# Remove previously created nodes (but keep schema)
@@ -306,14 +308,18 @@ class GraphiteBenchmarks: # pylint: disable=too-many-instance-attributes
 			engine.relations.clear()
 			gc.collect()
 
-		self._run_benchmark(f"node_creation(n: {n(self.size)})", create_many_nodes, _setup=setup_clean)
+		self._run_benchmark(
+			f"node_creation(n: {n(self.size)})",
+			create_many_nodes,
+			_setup=setup_clean
+		)
 		t.close()
 
 	# ---------- Relation creation ----------
 	def benchmark_relation_creation(self):
 		"""Benchmark creating relation instances"""
 		engine = create_benchmark_engine(
-			self.node_types, self.relation_types, self.size, 0, 1
+			self.node_types, self.relation_types, self.size, 0
 		)
 
 		t = tqdm(total=2, desc="Benchmark: Relation Creation", leave=False)
@@ -325,13 +331,17 @@ class GraphiteBenchmarks: # pylint: disable=too-many-instance-attributes
 				# Just select valid node types
 				src_n = next(iter(engine.node_by_type[rel_type_obj.from_type]))
 				tgt_n = next(iter(engine.node_by_type[rel_type_obj.to_type]))
-				engine.create_relation(src_n, tgt_n, rel_type, float(i)/100.0, f"edge_{i}")
+				engine.create_relation(src_n, tgt_n, rel_type, float(i) / 100.0, f"edge_{i}")
 
 		def setup_clean():
 			engine.remove_relations(set(engine.relations.values()))
 			gc.collect()
 
-		self._run_benchmark(f"relation_creation(r: {n(self.size)})", create_relations, _setup=setup_clean)
+		self._run_benchmark(
+			f"relation_creation(r: {n(self.size)})",
+			create_relations,
+			_setup=setup_clean
+		)
 		t.close()
 
 	# ---------- Queries ----------
@@ -340,11 +350,10 @@ class GraphiteBenchmarks: # pylint: disable=too-many-instance-attributes
 		t = tqdm(total=22, desc="Benchmark: Queries", leave=False)
 
 		engine = self.create_default_engine()
-		query = engine.query
-		all_nodes_result = query.all()
+		all_nodes_result = engine.query.all()
 		limited = all_nodes_result.limit(100)
 		remove_result = all_nodes_result.limit(100)
-		other = query.all().where("int_field_0 < 200")
+		other = engine.query.all().where("int_field_0 < 200")
 		other_operation_size = n(limited.union(other).count())
 
 		def query_where_string():
@@ -371,10 +380,10 @@ class GraphiteBenchmarks: # pylint: disable=too-many-instance-attributes
 				"NodeType0", True
 			), (
 				f"query_get_relations_from(n: {n(self.size)})", engine.get_relations_from,
-				f"node_{self.size//2}"
+				f"node_{self.size // 2}"
 			), (
 				f"query_get_relations_to(n: {n(self.size)})", engine.get_relations_to,
-				f"node_{self.size//2}"
+				f"node_{self.size // 2}"
 			), (
 				f"query_where_string(n: {n(self.size)})", query_where_string
 			), (
@@ -511,11 +520,11 @@ class GraphiteBenchmarks: # pylint: disable=too-many-instance-attributes
 		# instances
 		for i in range(1, size // 2, 2):
 			dsl_lines.append(f"NodeA, node_{i}, {i}, \"example\"")
-			dsl_lines.append(f"NodeB, node_{i+1}, {i}.5")
+			dsl_lines.append(f"NodeB, node_{i + 1}, {i}.5")
 		for i in range(1, size // 2, 2):
 			src_n = f"node_{i}"
-			tgt_n = f"node_{i+1}"
-			dsl_lines.append(f"{src_n} -[REL_A, {i/100.0}]-> {tgt_n}")
+			tgt_n = f"node_{i + 1}"
+			dsl_lines.append(f"{src_n} -[REL_A, {i / 100.0}]-> {tgt_n}")
 
 		dsl_text = "\n".join(dsl_lines)
 
@@ -535,7 +544,7 @@ class GraphiteBenchmarks: # pylint: disable=too-many-instance-attributes
 		engine = self.create_default_engine()
 		engine_size = asizeof.asizeof(engine)
 		if engine:
-			engine = None
+			engine.clear()
 		self.results[f"memory_overhead(n: {n(size)}, r: {n(size // 2)})"] = {
 			"size_bytes": engine_size,
 			"size_human": human_bytes(engine_size),
@@ -558,7 +567,9 @@ def generate_report(bench: GraphiteBenchmarks, dump_json: bool = False) -> str:
 	lines.append(" " * 45 + "GRAPHITE BENCHMARK REPORT")
 	lines.append(" " * 45 + f"Size factor: {n(bench.size)}, Runs: {bench.runs}")
 	lines.append("=" * width)
-	lines.append("| Metric " + " " * 49 + "| Avg         | Min         | Max         | StDev       |")
+	lines.append(
+		"| Metric " + " " * 49 + "| Avg         | Min         | Max         | StDev       |"
+	)
 	lines.append("|" + "-" * 57 + "|" + ("-" * 13 + "|") * 4)
 
 	memory_info = None
@@ -567,8 +578,8 @@ def generate_report(bench: GraphiteBenchmarks, dump_json: bool = False) -> str:
 			mean_s = stats["mean"]
 			mean_ms = mean_s * 1000
 			lines.append(
-				f"| {name:<55} | {mean_ms:8.3f} ms | {stats['min']*1000:8.3f} ms | "
-				f"{stats['max']*1000:8.3f} ms | {stats['stdev']*1000:8.3f} ms |"
+				f"| {name:<55} | {mean_ms:8.3f} ms | {stats['min'] * 1000:8.3f} ms | "
+				f"{stats['max'] * 1000:8.3f} ms | {stats['stdev'] * 1000:8.3f} ms |"
 			)
 		elif isinstance(stats, dict) and "size_bytes" in stats:
 			memory_info = (
@@ -591,14 +602,16 @@ def generate_report(bench: GraphiteBenchmarks, dump_json: bool = False) -> str:
 # ---------------------------------------------------------------------------
 # CLI entry point
 # ---------------------------------------------------------------------------
-# pylint: disable=too-many-arguments, too-many-positional-arguments, unused-argument
+
+# pylint: disable=unused-argument, too-many-locals, too-many-arguments
+# pylint: disable=too-many-positional-arguments
+# Reason: As CLI entry point, complexity of this function is natural.
 def main(
 	size: Annotated[int, typer.Option(help="Database size (nodes)")] = 100000,
 	runs: Annotated[int, typer.Option(help="Runs to benchmark")] = 10,
-	node_types: Annotated[int, typer.Option(help="Number of node types")] = 5,
-	relation_types: Annotated[int, typer.Option(help="Number of relation types")] = 3,
+	node_types: Annotated[int, typer.Option(help="Amount node types")] = 5,
+	relation_types: Annotated[int, typer.Option(help="Amount relation types")] = 3,
 	relations_ratio: Annotated[float, typer.Option(help="Relation ratio")] = 0.5,
-	inheritance_depth: Annotated[int, typer.Option(help="Inheritance depth on node types")] = 1,
 	dump_json: Annotated[
 		bool,
 		typer.Option("--json", help="Output to JSON instead of table")
@@ -607,31 +620,31 @@ def main(
 	on_schema: Annotated[
 		bool,
 		typer.Option(help="Benchmark node type and relation type definitions")
-	] = None, # ty: ignore[invalid-parameter-default]
+	] = None,  # ty: ignore[invalid-parameter-default]
 	on_node_creation: Annotated[
 		bool,
 		typer.Option(help="Benchmark node creation")
-	] = None, # ty: ignore[invalid-parameter-default]
+	] = None,  # ty: ignore[invalid-parameter-default]
 	on_relation_creation: Annotated[
 		bool,
 		typer.Option(help="Benchmark relation creation")
-	] = None, # ty: ignore[invalid-parameter-default]
+	] = None,  # ty: ignore[invalid-parameter-default]
 	on_queries: Annotated[
 		bool,
 		typer.Option(help="Benchmark queries")
-	] = None, # ty: ignore[invalid-parameter-default]
+	] = None,  # ty: ignore[invalid-parameter-default]
 	on_serialization: Annotated[
 		bool,
 		typer.Option(help="Benchmark save and load")
-	] = None, # ty: ignore[invalid-parameter-default]
+	] = None,  # ty: ignore[invalid-parameter-default]
 	on_dsl_parse: Annotated[
 		bool,
 		typer.Option(help="Benchmark a complete DSL parsing")
-	] = None, # ty: ignore[invalid-parameter-default]
+	] = None,  # ty: ignore[invalid-parameter-default]
 	on_memory: Annotated[
 		bool,
 		typer.Option(help="Benchmark memory usage")
-	] = None, # ty: ignore[invalid-parameter-default]
+	] = None,  # ty: ignore[invalid-parameter-default]
 ):
 	"""
 	Advanced benchmark suite for Graphite embedded graph database
@@ -642,7 +655,6 @@ def main(
 		node_types,
 		relation_types,
 		relations_ratio,
-		inheritance_depth,
 	)
 
 	benchmarks = {
@@ -658,7 +670,8 @@ def main(
 	benchmarks_to_run = {
 		name: func
 		for name, func in benchmarks.items()
-		if (run_all and (locals()[name] is None or locals()[name])) or (not run_all and locals()[name])
+		if
+		(run_all and (locals()[name] is None or locals()[name])) or (not run_all and locals()[name])
 	}
 
 	n_benchmarks = len(benchmarks_to_run)

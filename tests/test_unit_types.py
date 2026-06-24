@@ -5,8 +5,8 @@ import pytest
 
 from src.graphite import DataType, Field, NodeType, RelationType
 
-class TestDataType:
-	"""Test DataType enum"""
+class TestField:
+	"""Test Field and DataType enum"""
 
 	def test_data_type_values(self):
 		"""Test DataType enum values"""
@@ -28,10 +28,6 @@ class TestDataType:
 		"""Test invalid data type raises error"""
 		with pytest.raises(ValueError):
 			DataType("invalid_type")
-
-# pylint: disable=too-few-public-methods
-class TestField:
-	"""Test Field class"""
 
 	def test_field_creation(self):
 		"""Test creating a field"""

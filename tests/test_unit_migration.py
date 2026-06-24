@@ -11,7 +11,6 @@ from src.graphite import GraphiteEngine, Migration
 
 @pytest.mark.filterwarnings("ignore:'convert_pickle_to_json':PendingDeprecationWarning")
 @pytest.mark.filterwarnings("ignore:Loading from pickle file")
-# noinspection PyTypeChecker
 class TestMigration:
 	"""Test Migration utility class"""
 
@@ -24,14 +23,14 @@ class TestMigration:
 
 		# Save engine data in pickle format (simulating old format)
 		data = {
-			'node_types'       : engine.node_types,
-			'relation_types'   : engine.relation_types,
-			'nodes'            : engine.nodes,
-			'relations'        : engine.relations,
-			'node_by_type'     : dict(engine.node_by_type),
+			'node_types': engine.node_types,
+			'relation_types': engine.relation_types,
+			'nodes': engine.nodes,
+			'relations': engine.relations,
+			'node_by_type': dict(engine.node_by_type),
 			'relations_by_type': dict(engine.relations_by_type),
 			'relations_by_from': dict(engine.relations_by_from),
-			'relations_by_to'  : dict(engine.relations_by_to)
+			'relations_by_to': dict(engine.relations_by_to)
 		}
 
 		with open(pickle_file, 'wb') as f:
@@ -47,7 +46,6 @@ class TestMigration:
 
 		# Verify JSON file can be loaded
 		converted_engine = GraphiteEngine()
-		# noinspection PyDeprecation
 		converted_engine.load(json_file, safe_mode=True)
 
 		# Compare statistics
@@ -64,14 +62,14 @@ class TestMigration:
 
 		# Create pickle file
 		data = {
-			'node_types'       : engine.node_types,
-			'relation_types'   : engine.relation_types,
-			'nodes'            : engine.nodes,
-			'relations'        : engine.relations,
-			'node_by_type'     : dict(engine.node_by_type),
+			'node_types': engine.node_types,
+			'relation_types': engine.relation_types,
+			'nodes': engine.nodes,
+			'relations': engine.relations,
+			'node_by_type': dict(engine.node_by_type),
 			'relations_by_type': dict(engine.relation_types),
 			'relations_by_from': dict(engine.relations_by_from),
-			'relations_by_to'  : dict(engine.relations_by_to)
+			'relations_by_to': dict(engine.relations_by_to)
 		}
 
 		with open(pickle_file, 'wb') as f:
@@ -117,14 +115,14 @@ class TestMigration:
 
 			engine = populated_engine
 			data = {
-				'node_types'       : engine.node_types,
-				'relation_types'   : engine.relation_types,
-				'nodes'            : engine.nodes,
-				'relations'        : engine.relations,
-				'node_by_type'     : dict(engine.node_by_type),
+				'node_types': engine.node_types,
+				'relation_types': engine.relation_types,
+				'nodes': engine.nodes,
+				'relations': engine.relations,
+				'node_by_type': dict(engine.node_by_type),
 				'relations_by_type': dict(engine.relations_by_type),
 				'relations_by_from': dict(engine.relations_by_from),
-				'relations_by_to'  : dict(engine.relations_by_to)
+				'relations_by_to': dict(engine.relations_by_to)
 			}
 
 			with open(pickle_file, 'wb') as f:
@@ -142,6 +140,7 @@ class TestMigration:
 
 			# Run detection and conversion
 			Migration.detect_pickle_and_convert_to_json(temp_dir, pattern="*.db")
+			Migration.detect_pickle_and_convert_to_json(temp_dir, pattern="*.txt")
 
 			# Check that JSON version was created
 			expected_json = os.path.join(temp_dir, "test.json")

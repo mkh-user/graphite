@@ -31,17 +31,9 @@ class TestBFS:
 		assert path[0][0].type_name == "WORKS_AT"
 		assert path[0][1].id == "company1"
 
-	def test_bfs_multiple_paths(self, clean_engine):
+	def test_bfs_multiple_paths(self, simple_engine):
 		"""Test BFS finding multiple paths"""
-		engine = clean_engine
-
-		engine.define_node("node Person\nname: string")
-		engine.define_relation(
-			"""
-			relation KNOWS
-			Person -> Person
-			"""
-		)
+		engine = simple_engine
 
 		engine.create_node("Person", "p1", "Alice")
 		engine.create_node("Person", "p2", "Bob")
@@ -82,17 +74,9 @@ class TestBFS:
 
 		assert len(result) == 0
 
-	def test_bfs_max_depth(self, clean_engine):
+	def test_bfs_max_depth(self, simple_engine):
 		"""Test BFS with max depth limit"""
-		engine = clean_engine
-
-		engine.define_node("node Person\nname: string")
-		engine.define_relation(
-			"""
-			relation KNOWS
-			Person -> Person
-			"""
-		)
+		engine = simple_engine
 
 		engine.create_node("Person", "p1", "Alice")
 		engine.create_node("Person", "p2", "Bob")
@@ -139,12 +123,12 @@ class TestBFS:
 		engine = populated_engine
 
 		# Find any node with name "TechCorp"
-		def is_techcorp(path):
+		def is_tech_corp(path):
 			return path and path[-1][1].get("name") == "TechCorp"
 
 		result = engine.bfs(
 			start="person1",
-			end=is_techcorp,
+			end=is_tech_corp,
 			direction=Direction.OUTGOING,
 			stop_at_first=True
 		)
@@ -168,20 +152,12 @@ class TestBFS:
 
 		assert len(result) == 2
 		# Both person1 and person2 work at company1
-		node_ids = {r[0] for r in result}
-		assert node_ids == {"person1", "person2"}
+		node_ids = { r[0] for r in result }
+		assert node_ids == { "person1", "person2" }
 
-	def test_bfs_bidirectional_direction(self, clean_engine):
+	def test_bfs_bidirectional_direction(self, simple_engine):
 		"""Test BFS with both directions"""
-		engine = clean_engine
-
-		engine.define_node("node Person\nname: string")
-		engine.define_relation(
-			"""
-			relation KNOWS
-			Person -> Person
-			"""
-		)
+		engine = simple_engine
 
 		engine.create_node("Person", "p1", "Alice")
 		engine.create_node("Person", "p2", "Bob")
@@ -198,20 +174,12 @@ class TestBFS:
 			max_depth=1
 		)
 
-		node_ids = {r[0] for r in result}
-		assert node_ids == {"p2", "p3"}
+		node_ids = { r[0] for r in result }
+		assert node_ids == { "p2", "p3" }
 
-	def test_bfs_direction_switch(self, clean_engine):
+	def test_bfs_direction_switch(self, simple_engine):
 		"""Test BFS with direction switch"""
-		engine = clean_engine
-
-		engine.define_node("node Person\nname: string")
-		engine.define_relation(
-			"""
-			relation KNOWS
-			Person -> Person
-			"""
-		)
+		engine = simple_engine
 
 		engine.create_node("Person", "p1", "Alice")
 		engine.create_node("Person", "p2", "Bob")
@@ -243,7 +211,7 @@ class TestBFS:
 			end=None,
 			direction=Direction.OUTGOING,
 			relation_type="WORKS_AT",
-			visited={"company1"},
+			visited={ "company1" },
 			max_depth=1
 		)
 
@@ -297,15 +265,9 @@ class TestBFS:
 
 		assert len(result) == 1
 
-	def test_bfs_stop_at_first_no_direction_switch(self, clean_engine):
+	def test_bfs_stop_at_first_no_direction_switch(self, simple_engine):
 		"""Test BFS with stop at first in Direction.BOTH without direction switch"""
-		engine = clean_engine
-
-		engine.define_node("node Person\nname: string")
-		engine.define_relation("""
-		relation KNOWS
-		Person -> Person
-		""")
+		engine = simple_engine
 
 		engine.create_node("Person", "p1", "Alice")
 		engine.create_node("Person", "p2", "Bob")
@@ -351,18 +313,8 @@ class TestShortestPath:
 
 		engine.define_node("node Person\nname: string")
 		engine.define_node("node Company\nname: string")
-		engine.define_relation(
-			"""
-			relation WORKS_AT
-			Person -> Company
-			"""
-		)
-		engine.define_relation(
-			"""
-			relation MANAGED_BY
-			Person -> Person
-			"""
-		)
+		engine.define_relation("relation WORKS_AT\nPerson -> Company")
+		engine.define_relation("relation MANAGED_BY\nPerson -> Person")
 
 		engine.create_node("Person", "p1", "Alice")
 		engine.create_node("Person", "p2", "Bob")
@@ -407,12 +359,12 @@ class TestShortestPath:
 		"""Test shortest path with callable end condition"""
 		engine = populated_engine
 
-		def is_techcorp(_path):
+		def is_tech_corp(_path):
 			return _path and _path[-1][1].get("name") == "TechCorp"
 
 		result = engine.shortest_path(
 			from_node="person1",
-			to_end=is_techcorp,
+			to_end=is_tech_corp,
 			direction=Direction.OUTGOING
 		)
 
@@ -529,23 +481,14 @@ class TestConnectedComponents:
 		# All nodes should be in one component (person1, person2, company1, project1)
 		components = engine.connected_components()
 
-		# Should have at least one component
-		assert len(components) >= 1
-		# The main component should have at least 4 nodes
-		main_component = max(components, key=len)
-		assert len(main_component) >= 4
+		# Should have one component
+		assert len(components) == 1
+		# The main component should have 4 nodes
+		assert len(components[0]) == 4
 
-	def test_connected_components_specific_nodes(self, clean_engine):
+	def test_connected_components_specific_nodes(self, simple_engine):
 		"""Test connected components on specific nodes"""
-		engine = clean_engine
-
-		engine.define_node("node Person\nname: string")
-		engine.define_relation(
-			"""
-			relation KNOWS
-			Person -> Person
-			"""
-		)
+		engine = simple_engine
 
 		engine.create_node("Person", "p1", "Alice")
 		engine.create_node("Person", "p2", "Bob")
@@ -557,29 +500,21 @@ class TestConnectedComponents:
 		engine.create_relation("p3", "p4", "KNOWS")
 
 		components = engine.connected_components(
-			nodes={"p1", "p3"},
+			nodes={ "p1", "p3" },
 			return_all_nodes=True
 		)
 
 		assert len(components) == 2
 		# Find the component containing p1
 		p1_component = next(c for c in components if "p1" in c)
-		assert p1_component == {"p1", "p2"}
+		assert p1_component == { "p1", "p2" }
 		# Find the component containing p3
 		p3_component = next(c for c in components if "p3" in c)
-		assert p3_component == {"p3", "p4"}
+		assert p3_component == { "p3", "p4" }
 
-	def test_connected_components_single_node(self, clean_engine):
+	def test_connected_components_single_node(self, simple_engine):
 		"""Test connected components on single node"""
-		engine = clean_engine
-
-		engine.define_node("node Person\nname: string")
-		engine.define_relation(
-			"""
-			relation KNOWS
-			Person -> Person
-			"""
-		)
+		engine = simple_engine
 
 		engine.create_node("Person", "p1", "Alice")
 		engine.create_node("Person", "p2", "Bob")
@@ -597,19 +532,11 @@ class TestConnectedComponents:
 
 		assert len(components) == 1
 		# Find the component containing p1
-		assert components[0] == {"p1", "p2"}
+		assert components[0] == { "p1", "p2" }
 
-	def test_connected_components_invalid_node(self, clean_engine):
+	def test_connected_components_invalid_node(self, simple_engine):
 		"""Test connected components on an invalid node"""
-		engine = clean_engine
-
-		engine.define_node("node Person\nname: string")
-		engine.define_relation(
-			"""
-			relation KNOWS
-			Person -> Person
-			"""
-		)
+		engine = simple_engine
 
 		engine.create_node("Person", "p1", "Alice")
 		engine.create_node("Person", "p2", "Bob")
@@ -622,7 +549,7 @@ class TestConnectedComponents:
 
 		with pytest.raises(NotFoundError):
 			engine.connected_components(
-				nodes={"p5"},
+				nodes={ "p5" },
 				return_all_nodes=True
 			)
 
@@ -636,7 +563,7 @@ class TestConnectedComponents:
 		engine.create_node("Isolated", "iso2", "Isolated")
 
 		components = engine.connected_components(
-			nodes={"person1", "iso1", "iso2"},
+			nodes={ "person1", "iso1", "iso2" },
 			return_all_nodes=True
 		)
 
@@ -652,24 +579,16 @@ class TestConnectedComponents:
 		components = engine.connected_components(
 			nodes=None,
 			return_all_nodes=True,
-			ignore_nodes={"person1"}
+			ignore_nodes={ "person1" }
 		)
 
 		# person1 should not appear in any component
 		for component in components:
 			assert "person1" not in component
 
-	def test_connected_components_return_all_nodes_false(self, clean_engine):
+	def test_connected_components_return_all_nodes_false(self, simple_engine):
 		"""Test connected components with return_all_nodes=False"""
-		engine = clean_engine
-
-		engine.define_node("node Person\nname: string")
-		engine.define_relation(
-			"""
-			relation KNOWS
-			Person -> Person
-			"""
-		)
+		engine = simple_engine
 
 		engine.create_node("Person", "p1", "Alice")
 		engine.create_node("Person", "p2", "Bob")
@@ -679,7 +598,7 @@ class TestConnectedComponents:
 		# p3 is isolated
 
 		components = engine.connected_components(
-			nodes={"p1", "p3"},
+			nodes={ "p1", "p3" },
 			return_all_nodes=False
 		)
 
@@ -687,9 +606,38 @@ class TestConnectedComponents:
 		assert len(components) == 2
 		# p1's component should only include p1 (not p2)
 		p1_component = next(c for c in components if "p1" in c)
-		assert p1_component == {"p1"}
+		assert p1_component == { "p1" }
 		p3_component = next(c for c in components if "p3" in c)
-		assert p3_component == {"p3"}
+		assert p3_component == { "p3" }
+
+	def test_connected_components_visited_coverage(self, simple_engine):
+		"""Test connected components visited feature"""
+		engine = simple_engine
+
+		engine.parse(
+			"""
+			Person, p1, Person1
+			Person, p2, Person2
+			Person, p3, Person3
+			Person, p4, Person4
+			"""
+		)
+
+		engine.parse(
+			"""
+			p1 -[KNOWS]-> p2
+			p1 -[KNOWS]-> p3
+			p1 -[KNOWS]-> p4
+			"""
+		)
+
+		result = engine.connected_components(
+			None,
+			True,
+		)
+
+		assert len(result) == 1
+
 
 
 class TestNeighborhood:
@@ -706,7 +654,7 @@ class TestNeighborhood:
 		)
 
 		# Should include person1 and all direct neighbors
-		node_ids = {n.id for n, _ in nodes}
+		node_ids = { n.id for n, _ in nodes }
 		assert "person1" in node_ids
 		assert "company1" in node_ids
 		assert "project1" in node_ids
@@ -743,7 +691,7 @@ class TestNeighborhood:
 			direction=Direction.OUTGOING
 		)
 
-		node_ids = {n.id for n, _ in nodes}
+		node_ids = { n.id for n, _ in nodes }
 		assert "p1" in node_ids
 		assert "p2" in node_ids
 		assert "c1" in node_ids
@@ -771,7 +719,7 @@ class TestNeighborhood:
 			direction=Direction.OUTGOING
 		)
 
-		node_ids = {n.id for n, _ in nodes}
+		node_ids = { n.id for n, _ in nodes }
 		# Should include person1 and company1, but not project1
 		assert "person1" in node_ids
 		assert "company1" in node_ids
@@ -806,7 +754,7 @@ class TestNeighborhood:
 			relation_type="WORKS_AT"
 		)
 
-		node_ids = {n.id for n, _ in nodes}
+		node_ids = { n.id for n, _ in nodes }
 		assert "company1" in node_ids
 		assert "person1" in node_ids
 		assert "person2" in node_ids
@@ -819,24 +767,16 @@ class TestNeighborhood:
 			start="person1",
 			max_distance=1,
 			direction=Direction.OUTGOING,
-			ignore_nodes={"company1"}
+			ignore_nodes={ "company1" }
 		)
 
-		node_ids = {n.id for n, _ in nodes}
+		node_ids = { n.id for n, _ in nodes }
 		# company1 should be ignored
 		assert "company1" not in node_ids
 
-	def test_neighborhood_duplicates(self, clean_engine):
+	def test_neighborhood_duplicates(self, simple_engine):
 		"""Test neighborhood with duplicates"""
-		engine = clean_engine
-
-		engine.define_node("node Person\nname: string")
-		engine.define_relation(
-			"""
-			relation KNOWS
-			Person -> Person
-			"""
-		)
+		engine = simple_engine
 
 		engine.create_node("Person", "p1", "Alice")
 		engine.create_node("Person", "p2", "Bob")
@@ -854,11 +794,11 @@ class TestNeighborhood:
 		# p3 in 2 path
 		nodes, relations = engine.neighborhood(
 			start="p1",
-			direction=Direction.BOTH # Catch reverses
+			direction=Direction.BOTH  # Catch reverses
 		)
 
-		assert len(nodes) == 3 # p1, p2, p3
-		assert len(relations) == 4 # All relations
+		assert len(nodes) == 3  # p1, p2, p3
+		assert len(relations) == 4  # All relations
 
 
 class TestAlgorithmEdgeCases:
@@ -885,17 +825,9 @@ class TestAlgorithmEdgeCases:
 
 		assert len(result) == 0
 
-	def test_bfs_cycle_detection(self, clean_engine):
+	def test_bfs_cycle_detection(self, simple_engine):
 		"""Test BFS handles cycles correctly"""
-		engine = clean_engine
-
-		engine.define_node("node Person\nname: string")
-		engine.define_relation(
-			"""
-			relation KNOWS
-			Person -> Person
-			"""
-		)
+		engine = simple_engine
 
 		engine.create_node("Person", "p1", "Alice")
 		engine.create_node("Person", "p2", "Bob")
@@ -915,14 +847,13 @@ class TestAlgorithmEdgeCases:
 		)
 
 		# Should find all nodes
-		node_ids = {r[0] for r in result}
-		assert node_ids == {"p2", "p3"}
+		node_ids = { r[0] for r in result }
+		assert node_ids == { "p2", "p3" }
 
-	def test_neighborhood_empty_graph(self, clean_engine):
+	def test_neighborhood_empty_graph(self, simple_engine):
 		"""Test neighborhood on empty graph"""
-		engine = clean_engine
+		engine = simple_engine
 
-		engine.define_node("node Person\nname: string")
 		engine.create_node("Person", "p1", "Alice")
 
 		nodes, relations = engine.neighborhood(
@@ -931,7 +862,7 @@ class TestAlgorithmEdgeCases:
 		)
 
 		assert len(nodes) == 1
-		assert nodes == {(engine.get_node("p1"), 0)}
+		assert nodes == { (engine.get_node("p1"), 0) }
 		assert len(relations) == 0
 
 	def test_connected_components_empty(self, clean_engine):

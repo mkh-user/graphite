@@ -31,6 +31,7 @@ class TestDSLIntegration:
 		relation WORKS_AT
 		Person -> Company
 		position: string
+		# Must support in-block comments
 		since: date
 
 		relation MANAGES
@@ -174,7 +175,8 @@ class TestDSLIntegration:
 		"""Test loading DSL with multiline definitions"""
 		engine = clean_engine
 
-		dsl = """node Person
+		dsl = """
+		node Person
 		name: string
 		age: int
 		email: string

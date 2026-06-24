@@ -1,6 +1,7 @@
 """
 Query engine and object for Graphite
 """
+import warnings
 from collections import defaultdict
 from collections.abc import Callable
 from enum import Enum
@@ -9,7 +10,7 @@ from typing import Any, TYPE_CHECKING, cast
 
 from typing_extensions import deprecated
 
-from .parser import GraphiteParser
+from .dsl_parser import parse_value
 from .exceptions import ConditionError, NotFoundError
 from .instances import Node, Relation
 from .types import RelationType
@@ -24,6 +25,8 @@ class Direction(Enum):
 	BOTH = "both"
 
 # pylint: disable=too-many-public-methods
+# Reason: This functions help users to reduce hacks, direct access, lines of code,
+# error robustness. Providing a more advanced and optimized query system can fix this issue.
 class QueryResult:
 	"""
 	Represents a query result that can be chained
@@ -106,8 +109,8 @@ class QueryResult:
 		"""
 		return QueryResult(
 			self.engine,
-			{node for node in self.nodes if node.id in self.engine.nodes},
-			{relation for relation in self.edges if id(relation) in self.engine.relations},
+			{ node for node in self.nodes if node.id in self.engine.nodes },
+			{ relation for relation in self.edges if id(relation) in self.engine.relations },
 		)
 
 	def where(self, condition: str | Callable[[Node], bool]) -> 'QueryResult':
@@ -137,7 +140,6 @@ class QueryResult:
 
 		return QueryResult(self.engine, filtered_nodes, self.edges)
 
-	# pylint: disable=too-many-branches
 	@staticmethod
 	def _evaluate_condition(target_nodes: set[Node], condition: str) -> set[Node]:
 		"""
@@ -150,28 +152,27 @@ class QueryResult:
 
 		:except ConditionError: if fail on executing condition
 		"""
-		# Simple condition parser
-		ops = ['>=', '<=', '!=', '==', '>', '<', '=']
+		operators = {
+			'>=': lambda a, b: a >= b,
+			'<=': lambda a, b: a <= b,
+			'!=': lambda a, b: a != b,
+			'==': lambda a, b: a == b,
+			'=': lambda a, b: a == b,
+			'>': lambda a, b: a > b,
+			'<': lambda a, b: a < b,
+		}
 
-		for op in ops:
+		for op in sorted(operators.keys(), key=len, reverse=True):
 			if op in condition:
-				left, right = condition.split(op)
+				left, right = condition.split(op, 1)
 				left = left.strip()
-				right = GraphiteParser.parse_value(right.strip())
+				right = parse_value(right.strip())
 
 				try:
-					if op in ('=', '=='):
-						return {n for n in target_nodes if n.get(left) is not None and n.get(left) == right}
-					if op == '!=':
-						return {n for n in target_nodes if n.get(left) is not None and n.get(left) != right}
-					if op == '>':
-						return {n for n in target_nodes if n.get(left) is not None and n.get(left) > right}
-					if op == '<':
-						return {n for n in target_nodes if n.get(left) is not None and n.get(left) < right}
-					if op == '>=':
-						return {n for n in target_nodes if n.get(left) is not None and n.get(left) >= right}
-					if op == '<=':
-						return {n for n in target_nodes if n.get(left) is not None and n.get(left) <= right}
+					return {
+						n for n in target_nodes
+						if n.get(left) is not None and operators[op](n.get(left), right)
+					}
 				except TypeError as e:
 					raise ConditionError(condition) from e
 
@@ -191,9 +192,9 @@ class QueryResult:
 		"""
 		if include_parent_types:
 			type_nodes = self.engine.get_nodes_of_type(node_type, True)
-			n = {node for node in self.nodes if node in type_nodes}
+			n = { node for node in self.nodes if node in type_nodes }
 		else:
-			n = {node for node in self.nodes if node.type_name == node_type}
+			n = { node for node in self.nodes if node.type_name == node_type }
 		return QueryResult(self.engine, n, self.edges)
 
 	def with_fields(self, *fields: str) -> 'QueryResult':
@@ -206,7 +207,7 @@ class QueryResult:
 		"""
 		return QueryResult(
 			self.engine,
-			{node for node in self.nodes if all(field in node.values for field in fields)},
+			{ node for node in self.nodes if all(field in node.values for field in fields) },
 			self.edges
 		)
 
@@ -259,9 +260,7 @@ class QueryResult:
 						else edge.from_node
 					)
 
-				target_node = self.engine.get_node(target_id)
-				if target_node:
-					result_nodes.add(target_node)
+				result_nodes.add(self.engine.nodes[target_id])
 
 		return QueryResult(self.engine, result_nodes, result_edges)
 
@@ -314,11 +313,13 @@ class QueryResult:
 		"""
 		return QueryResult(
 			self.engine,
-			set(sorted(
-				self.nodes,
-				key=lambda node: node.get(order_by_field) if order_by_field else node.id,
-				reverse=descending
-			)[:n]),
+			set(
+				sorted(
+					self.nodes,
+					key=lambda node: node.get(order_by_field) if order_by_field else node.id,
+					reverse=descending
+				)[:n]
+			),
 			self.edges
 		)
 
@@ -349,11 +350,13 @@ class QueryResult:
 		end = start + per_page
 		return QueryResult(
 			self.engine,
-			set(sorted(
-				self.nodes,
-				key=lambda node: node.get(order_by_field) if order_by_field else node.id,
-				reverse=descending
-			)[start:end]),
+			set(
+				sorted(
+					self.nodes,
+					key=lambda node: node.get(order_by_field) if order_by_field else node.id,
+					reverse=descending
+				)[start:end]
+			),
 			self.edges,
 		)
 
@@ -398,6 +401,10 @@ class QueryResult:
 
 		:return: a new query with distinct nodes and original relations
 		"""
+		warnings.warn(
+			"distinct() is deprecated and unnecessary",
+			DeprecationWarning
+		)
 		return self
 
 	def order_by(self, by_field: str, descending: bool = False) -> list[Node]:
@@ -413,6 +420,7 @@ class QueryResult:
 		def get_key(from_node: Node) -> tuple[bool, Any]:
 			val = from_node.get(by_field)
 			return val is None, val
+
 		return sorted(self.nodes, key=get_key, reverse=descending)
 
 	def sum(self, field: str) -> float:
@@ -462,7 +470,7 @@ class QueryResult:
 
 		:raise TypeError: If there isn't any numeric value in given field
 		"""
-		nodes = {n for n in self.nodes if isinstance(n.get(field), (float, int))}
+		nodes = { n for n in self.nodes if isinstance(n.get(field), (float, int)) }
 		if not nodes:
 			raise TypeError(f"There is no node with numeric value for field {field}!")
 		return reduce(
@@ -480,7 +488,7 @@ class QueryResult:
 
 		:raise TypeError: If there isn't any numeric value in given field
 		"""
-		nodes = {n for n in self.nodes if isinstance(n.get(field), (float, int))}
+		nodes = { n for n in self.nodes if isinstance(n.get(field), (float, int)) }
 		if not nodes:
 			raise TypeError(f"There is no node with numeric value for field {field}!")
 		return reduce(
@@ -502,7 +510,7 @@ class QueryResult:
 
 		:return: set of nodes
 		"""
-		return self.nodes
+		return self.nodes.copy()
 
 	def group_by(self, field: str) -> dict[Any, set[Node]]:
 		"""
@@ -524,7 +532,7 @@ class QueryResult:
 
 		:return: set of relations
 		"""
-		return self.edges
+		return self.edges.copy()
 
 	def first(
 		self,
@@ -551,7 +559,7 @@ class QueryResult:
 
 		:return: list of node IDs
 		"""
-		return {n.id for n in self.nodes}
+		return { n.id for n in self.nodes }
 
 class QueryBuilder:
 	"""Builder for creating queries"""
