@@ -1,8 +1,9 @@
 """
 Tests for utility functions
 """
+from src.graphite import engine
 from src.graphite.engine import GraphiteEngine
-from src.graphite.utils import SecurityWarning, engine, node, relation
+from src.graphite.utils import SecurityWarning, node, relation
 
 class TestUtils:
 	"""Test utility functions"""
@@ -11,10 +12,7 @@ class TestUtils:
 		"""Test node helper function"""
 		result = node("Person", name="string", age="int", email="string")
 
-		expected = """node Person
-name: string
-age: int
-email: string"""
+		expected = "node Person\nname: string\nage: int\nemail: string"
 
 		assert result.strip() == expected
 
@@ -22,8 +20,7 @@ email: string"""
 		"""Test relation helper function simple case"""
 		result = relation("WORKS_AT", "Person", "Company")
 
-		expected = """relation WORKS_AT
-Person -> Company"""
+		expected = "relation WORKS_AT\nPerson -> Company"
 
 		assert result.strip() == expected
 
@@ -31,13 +28,10 @@ Person -> Company"""
 		"""Test relation helper with fields"""
 		result = relation(
 			"WORKS_AT", "Person", "Company",
-			fields={"position": "string", "since": "date"}
+			fields={ "position": "string", "since": "date" }
 		)
 
-		expected = """relation WORKS_AT
-Person -> Company
-position: string
-since: date"""
+		expected = "relation WORKS_AT\nPerson -> Company\nposition: string\nsince: date"
 
 		assert result.strip() == expected
 
@@ -45,8 +39,7 @@ since: date"""
 		"""Test relation helper with bidirectional"""
 		result = relation("FRIENDS_WITH", "Person", "Person", both=True)
 
-		expected = """relation FRIENDS_WITH both
-Person - Person"""
+		expected = "relation FRIENDS_WITH both\nPerson - Person"
 
 		assert result.strip() == expected
 
@@ -54,8 +47,7 @@ Person - Person"""
 		"""Test relation helper with reverse"""
 		result = relation("WORKS_AT", "Person", "Company", reverse="EMPLOYS")
 
-		expected = """relation WORKS_AT reverse EMPLOYS
-Person -> Company"""
+		expected = "relation WORKS_AT reverse EMPLOYS\nPerson -> Company"
 
 		assert result.strip() == expected
 

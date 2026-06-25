@@ -72,20 +72,14 @@ class Migration:
 		:return: None
 		"""
 		for pickle_file in glob.glob(os.path.join(directory, pattern)):
-			if pickle_file.endswith('.json'):
-				continue
-
 			json_file = pickle_file.rsplit('.', 1)[0] + '.json'
 
-			try:
-				# Quick check if it's a pickle file
-				with open(pickle_file, 'rb') as f:
-					# Try to read pickle header
-					header = f.read(4)
-					if header == b'\x80\x04' or header.startswith(b'\x80'):  # Pickle protocol 4
-						Migration.convert_pickle_to_json(
-							pickle_file, json_file, delete_originals
-						)
-			except Exception as e: # pylint: disable=broad-exception-caught
-				# Not a pickle file or can't read
-				print(f"File '{pickle_file}' skipped: {e}")
+			with open(pickle_file, 'rb') as f:
+				# Try to read pickle header
+				header = f.read(4)
+				if header == b'\x80\x04' or header.startswith(b'\x80'):  # Pickle protocol 4
+					Migration.convert_pickle_to_json(
+						pickle_file, json_file, delete_originals
+					)
+				else:
+					print(f"File '{pickle_file}' is not picle protocol 4, skipped.")

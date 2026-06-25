@@ -3,13 +3,16 @@ Integration tests for persistence (save/load)
 """
 import os
 import warnings
+from unittest.mock import mock_open, patch
 
 import pytest
 
 from src.graphite import GraphiteEngine
-from src.graphite.exceptions import FileSizeError, InvalidJSONError, SafeLoadExtensionError
+from src.graphite.exceptions import (
+	FileSizeError, InvalidJSONError, SafeLoadExtensionError,
+	TooNestedJSONError,
+)
 
-# noinspection PyDeprecation
 class TestPersistenceIntegration:
 	"""Test persistence integration scenarios"""
 
@@ -137,31 +140,18 @@ class TestPersistenceIntegration:
 		engine = clean_engine
 
 		# Create complex schema
-		engine.define_node(
-			"""
-		node User
-		name: string
-		metadata: string
-		scores: string
-		"""
-		)
+		engine.define_node("node User\nname: string\nmetadata: string\nscores: string")
 
-		engine.define_node(
-			"""
-		node Group
-		name: string
-		settings: string
-		"""
-		)
+		engine.define_node("node Group\nname: string\nsettings: string")
 
 		engine.define_relation(
 			"""
-		relation MEMBER_OF
-		User -> Group
-		role: string
-		joined: date
-		permissions: string
-		"""
+					relation MEMBER_OF
+					User -> Group
+					role: string
+					joined: date
+					permissions: string
+					"""
 		)
 
 		# Create data with special characters
@@ -231,3 +221,13 @@ class TestPersistenceIntegration:
 		assert len(engine3.nodes) == 2
 		assert engine3.get_node("t1")["value"] == "Cycle1"
 		assert engine3.get_node("t2")["value"] == "Cycle2"
+
+	def test_too_nested_json_handling(self, clean_engine, temp_json_file):
+		"""Test TooNestedJSON handling"""
+		engine = clean_engine
+		mock_file = mock_open(read_data='{"a": {"b": {"c": "d"}}}')
+
+		with patch('builtins.open', mock_file):
+			with patch('json.load', side_effect=RecursionError("mock recursion error")):
+				with pytest.raises(TooNestedJSONError):
+					engine.load(temp_json_file)

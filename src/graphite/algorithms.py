@@ -2,7 +2,7 @@
 Implemented standard graph algorithms for Graphite graph database.
 """
 from collections import deque
-from typing import Callable, cast, TYPE_CHECKING
+from typing import Callable, TYPE_CHECKING, cast
 
 from .instances import Node, Relation
 from .query import Direction
@@ -10,8 +10,11 @@ from .query import Direction
 if TYPE_CHECKING:
 	from .engine import GraphiteEngine
 
-# pylint: disable=too-many-locals, too-many-positional-arguments, too-many-arguments
-# pylint: disable=too-many-branches
+# pylint: disable=too-many-branches, too-many-locals, too-many-positional-arguments
+# pylint: disable=too-many-arguments
+# Reason: This BFS is a feature-rich and flexible implementation. It is mostly used as a
+# low-level function to provide the necessary flexibility for other application-specific
+# functions, so its complexity is decided.
 def bfs(
 	engine: 'GraphiteEngine',
 	start: Node | str,
@@ -20,7 +23,7 @@ def bfs(
 	direction: Direction = Direction.OUTGOING,
 	relation_type: str | None = None,
 	max_depth: int | None = None,
-	include_start:bool = False,
+	include_start: bool = False,
 	allow_direction_switch: bool = False,
 	visited: set[str] | None = None,
 	max_results: int | None = None
@@ -67,7 +70,7 @@ def bfs(
 		end.id if isinstance(end, Node) else end
 	)
 	queue: deque[tuple[str, int, list[tuple[Relation, Node]], set[str]]] = deque()
-	queue.append((start, 0, [], {start} | (visited if visited is not None else set())))
+	queue.append((start, 0, [], { start } | (visited if visited is not None else set())))
 	result: list[tuple[str, int, list[tuple[Relation, Node]]]] = []
 	if callable(end):
 		end = cast(Callable[[list[tuple[Relation, Node]]], bool], end)
@@ -80,7 +83,7 @@ def bfs(
 				result.append((current, depth, path))
 				if stop_at_first:
 					break
-				continue # Exact match on node ID, this branch hasn't anything else to find
+				continue  # Exact match on node ID, this branch hasn't anything else to find
 			if callable(end) and end(path):
 				result.append((current, depth, path))
 				if stop_at_first:
@@ -103,7 +106,11 @@ def bfs(
 
 	return result[:max_results] if max_results is not None else result
 
-def shortest_path( # pylint: disable=too-many-positional-arguments, too-many-arguments
+# pylint: disable=too-many-positional-arguments, too-many-arguments
+# Reason: This function provides complete flexibility of BFS usage (no weight mode) to reduce
+# hacking need in finding the shortest path. Providing another wrapper based on most-used
+# configuration is planned.
+def shortest_path(
 	engine: 'GraphiteEngine',
 	from_node: Node | str,
 	to_end: Node | str | Callable[[list[tuple[Relation, Node]]], bool] | None = None,
@@ -148,7 +155,9 @@ def shortest_path( # pylint: disable=too-many-positional-arguments, too-many-arg
 		return None if len(result) == 0 else result[0]
 	raise NotImplementedError("Weighted shortest path is not implemented yet.")
 
-def all_shortest_paths( # pylint: disable=too-many-positional-arguments, too-many-arguments
+# pylint: disable=too-many-positional-arguments, too-many-arguments
+# Reason: As described in shortest_path().
+def all_shortest_paths(
 	engine: 'GraphiteEngine',
 	from_node: Node | str,
 	to_end: Node | str | Callable[[list[tuple[Relation, Node]]], bool] | None = None,
@@ -196,7 +205,9 @@ def all_shortest_paths( # pylint: disable=too-many-positional-arguments, too-man
 		return [p for p in paths if p[1] == min_depth]
 	raise NotImplementedError("Weighted all shortest paths is not implemented yet.")
 
-def connected_components( # pylint: disable=too-many-positional-arguments, too-many-arguments
+# pylint: disable=too-many-locals, too-many-positional-arguments, too-many-arguments
+# Reason: As described in shortest_path().
+def connected_components(
 	engine: 'GraphiteEngine',
 	nodes: Node | str | set[Node | str] | None = None,
 	return_all_nodes: bool = False,
@@ -222,21 +233,20 @@ def connected_components( # pylint: disable=too-many-positional-arguments, too-m
 	if nodes is None:
 		_nodes = set(engine.nodes.keys())
 	elif not isinstance(nodes, set):
-		_nodes = {nodes if isinstance(nodes, str) else nodes.id}
+		_nodes = { nodes.id if isinstance(nodes, Node) else nodes }
 	else:
-		_nodes = {node.id if isinstance(node, Node) else node for node in nodes}
+		_nodes = { node.id if isinstance(node, Node) else node for node in nodes }
 
 	if ignore_nodes is not None:
 		_nodes -= ignore_nodes
 
 	result: list[set[str]] = []
-	visited = set()
+	visited: set[str] = set()
 	for node in _nodes:
-		# Skip currently found nodes when max depth not provided
 		if node in visited:
 			continue
 
-		step_result = {r[0] for r in bfs(
+		step_result = { r[0] for r in bfs(
 			engine,
 			str(node),
 			direction=direction,
@@ -244,7 +254,7 @@ def connected_components( # pylint: disable=too-many-positional-arguments, too-m
 			include_start=True,
 			allow_direction_switch=allow_direction_switch,
 			visited=ignore_nodes
-		)}
+		) }
 
 		if not return_all_nodes:
 			step_result &= _nodes
@@ -268,7 +278,9 @@ def connected_components( # pylint: disable=too-many-positional-arguments, too-m
 
 	return merged_result
 
-def neighborhood( # pylint: disable=too-many-positional-arguments, too-many-arguments
+# pylint: disable=too-many-locals, too-many-positional-arguments, too-many-arguments
+# Reason: As described in shortest_path().
+def neighborhood(
 	engine: 'GraphiteEngine',
 	start: Node | str,
 	max_distance: int | None = None,

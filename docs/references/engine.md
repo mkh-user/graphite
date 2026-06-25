@@ -115,16 +115,16 @@ when `rel_type` is not `None`, filters relations to given type
 Undefine a node type
 
 `NotFoundError` for invalid type
-Removes all instances with `remove_node()`
+Removes all instances with `remove_nodes()`
 Removes all relation types (and instances) referenced this node type with `undefine_relation()` (and internal `remove_relation()`s)
-Removes all node types (and instances) defined from this node type (with `from` keyword) with `undefine_node()` (and internal `remove_node()`s)
+Removes all node types (and instances) defined from this node type (with `from` keyword) with `undefine_node()` (and internal `remove_nodes()`s)
 
 ## `undefine_relation(relation_type: str) -> None`
 
 Undefine a relation type
 
 `NotFoundError` fro invalid type
-Removes all instances with `remove_relation()`
+Removes all instances with `remove_relations()`
 Removes reverse name created with `reverse` keyword if exists
 
 ## `remove_node(node: Union[Node, str]) -> None`

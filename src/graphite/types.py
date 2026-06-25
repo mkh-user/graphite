@@ -51,7 +51,7 @@ class NodeType:
 		"""Get all fields including inherited ones"""
 		if self.all_fields_cache is not None:
 			return self.all_fields_cache
-		fields = self.fields.copy()
+		fields = self.fields.copy() if self.fields is not None else []
 		if self.parent:
 			fields = self.parent.get_all_fields() + fields
 		self.all_fields_cache = fields

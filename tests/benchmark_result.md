@@ -1,6 +1,7 @@
 # Graphite Benchmark Report
 
 ## System Configuration
+
 - Python: 3.12
 - OS: Windows 11 24H2
 - CPU: Intel(R) Core(TM) i5-10210U CPU @ 1.60GHz
@@ -8,6 +9,7 @@
 - Storage: SSD
 
 ## Test Parameters
+
 - Size factor: 100,000 nodes, 50,000 relations
 - Runs: 10
 - Warm cache: Yes

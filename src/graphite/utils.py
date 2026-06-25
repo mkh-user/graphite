@@ -27,12 +27,7 @@ def relation(name: str, from_type: str, to_type: str, **kwargs: Any) -> str:
 	direction = "->" if not kwargs.get('both') else "-"
 	lines.append(f"{from_type} {direction} {to_type}")
 
-	for field_name, field_type in kwargs.get('fields', {}).items():
+	for field_name, field_type in kwargs.get('fields', { }).items():
 		lines.append(f"{field_name}: {field_type}")
 
 	return "\n".join(lines)
-
-def engine() -> 'GraphiteEngine':
-	"""Create graphite engine instance"""
-	from .engine import GraphiteEngine # pylint: disable=import-outside-toplevel
-	return GraphiteEngine()

@@ -52,10 +52,10 @@ class Node:
 	def __hash__(self) -> int:
 		return hash(self.id)
 
-	def __eq__(self, other: object) -> bool:
-		if not isinstance(other, Node):
-			return NotImplemented
-		return self.id == other.id
+	def __eq__(self, other: Any) -> bool:
+		if isinstance(other, Node):
+			return self.id == other.id
+		return NotImplemented
 
 @dataclass
 class Relation:

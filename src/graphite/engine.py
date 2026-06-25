@@ -9,68 +9,100 @@ from typing import Any, Callable, cast
 
 from typing_extensions import deprecated
 
-from . import algorithms as _algorithms
+from . import algorithms as _algorithms, dsl_parser as _parser
 from .exceptions import (
 	FileSizeError, InvalidJSONError, InvalidPropertiesError, InvalidRelationError,
-	NotFoundError, SafeLoadExtensionError, TooNestedJSONError,
+	NotFoundError, ParseError, RelationTypeDefineError, SafeLoadExtensionError, TooNestedJSONError,
 )
 from .instances import Node, Relation
-from .parser import GraphiteParser
 from .query import Direction, QueryBuilder
 from .serialization import (
-	GraphiteJSONEncoder, SAVE_FILE_VERSION, _validate_loaded_data,
-	graphite_object_hook,
+	GraphiteJSONEncoder, SAVE_FILE_VERSION, _load_from_dict, _validate_loaded_data,
+	graphite_object_hook
 )
-from .types import Field, NodeType, RelationType
+from .types import DataType, Field, NodeType, RelationType
 
-# pylint: disable=too-many-instance-attributes, too-many-public-methods
+# pylint: disable=too-many-public-methods, too-many-instance-attributes
+# Reason: GraphiteEngine is main entry point of Graphite, so count of its members is reasonable.
 class GraphiteEngine:
 	"""Main graph database engine"""
 
 	def __init__(self):
-		self.node_types: dict[str, NodeType] = {}
-		self.relation_types: dict[str, RelationType] = {}
-		self.nodes: dict[str, Node] = {}
-		self.relations: dict[int, Relation] = {}
+		self.node_types: dict[str, NodeType] = { }
+		self.relation_types: dict[str, RelationType] = { }
+		self.nodes: dict[str, Node] = { }
+		self.relations: dict[int, Relation] = { }
 		self.node_by_type: dict[str, set[str]] = defaultdict(set)
 		self.relations_by_type: dict[str, set[int]] = defaultdict(set)
 		self.relations_by_from: dict[str, set[int]] = defaultdict(set)
 		self.relations_by_to: dict[str, set[int]] = defaultdict(set)
-		self.parser: GraphiteParser = GraphiteParser()
 		self.query: QueryBuilder = QueryBuilder(self)
 
 	# =============== SCHEMA DEFINITION ===============
 
-	def define_node(self, definition: str) -> None:
+	def define_node(
+		self,
+		node_type: str,
+		*fields: tuple[str, str],
+		parent: str | None = None
+	) -> None:
 		"""
-		Define a node type from DSL
+		Define a node type from DSL / direct creation
 
-		:param definition: Node definition string in Graphite DSL
+		:param node_type: Node definition string in Graphite DSL or type name
+		:param fields: Fields of node type: (name, type)
+		:param parent: Parent node type name
 
 		:return: None
 
 		:except GraphiteError: if node definition is not valid
 		:except NotFoundError: if parent node definition (from ...) is not found
 		"""
-		node_name, fields, parent_name = self.parser.parse_node_definition(definition)
+		node_type = node_type.strip()
+		if node_type.startswith('node '):
+			node_type, _fields, parent = _parser.parse_node_definition(node_type)
+			fields = tuple(_fields)
 
-		parent = None
-		if parent_name:
-			if parent_name not in self.node_types:
+		if parent is not None:
+			if parent not in self.node_types:
 				raise NotFoundError(
 					"Parent node type",
-					parent_name,
+					parent,
 				)
-			parent = self.node_types[parent_name]
+			parent: NodeType = self.node_types[parent]
 
-		node_type = NodeType(node_name, fields, parent)
-		self.node_types[node_name] = node_type
+		final_fields: list[Field] = []
+		for name, data_type in fields:
+			try:
+				final_fields.append(Field(name, DataType(data_type)))
+			except ValueError as e:
+				raise NotFoundError(
+					"Data type",
+					data_type
+				) from e
+		node_type_obj = NodeType(node_type, final_fields, parent)
+		self.node_types[node_type] = node_type_obj
 
-	def define_relation(self, definition: str) -> None:
+	# pylint: disable=too-many-positional-arguments, too-many-arguments, keyword-arg-before-vararg
+	# Reason: Arguments are just relation type fields, and order of them is based on usage.
+	def define_relation(
+		self,
+		relation_type: str,
+		source_type: str | None = None,
+		target_type: str | None = None,
+		*fields: tuple[str, str],
+		reverse_name: str | None = None,
+		is_bidirectional: bool = False
+	) -> None:
 		"""
-		Define a relation type from DSL
+		Define a relation type from DSL / direct creation
 
-		:param definition: Relation definition string in Graphite DSL
+		:param relation_type: Relation definition string in Graphite DSL / relation type name
+		:param source_type: Source node type name
+		:param target_type: Target node type name
+		:param fields: Fields of relation type: (name, type)
+		:param reverse_name: Reverse relation name
+		:param is_bidirectional: Is bidirectional relation
 
 		:return: None
 
@@ -78,32 +110,51 @@ class GraphiteEngine:
 		:except RelationTypeDefineError: if relation type have both 'reverse ...' and 'both' flags
 		:except NotFoundError: if source or target node types are not found
 		"""
-		(rel_name, from_type, to_type, fields,
-		reverse_name, is_bidirectional) = self.parser.parse_relation_definition(definition)
+		relation_type = relation_type.strip()
+		if relation_type.startswith('relation '):
+			(relation_type, source_type, target_type, _fields,
+			reverse_name, is_bidirectional) = _parser.parse_relation_definition(relation_type)
+			fields = tuple(_fields)
 
+		if source_type is None or target_type is None:
+			raise ParseError(
+				"Source and target node type is required for relation types"
+			)
+		if reverse_name is not None and is_bidirectional:
+			raise RelationTypeDefineError(relation_type)
 		# Validate node types exist
-		if from_type not in self.node_types:
+		if source_type not in self.node_types:
 			raise NotFoundError(
 				"Node type",
-				from_type,
+				source_type,
 			)
-		if to_type not in self.node_types:
+		if target_type not in self.node_types:
 			raise NotFoundError(
 				"Node type",
-				to_type,
+				target_type,
 			)
 
-		rel_type = RelationType(
-			rel_name, from_type, to_type,
-			fields, reverse_name, is_bidirectional
+		final_fields: list[Field] = []
+		for name, data_type in fields:
+			try:
+				final_fields.append(Field(name, DataType(data_type)))
+			except ValueError as e:
+				raise NotFoundError(
+					"Data type",
+					data_type
+				) from e
+
+		relation_type_obj = RelationType(
+			relation_type, source_type, target_type,
+			final_fields, reverse_name, is_bidirectional
 		)
-		self.relation_types[rel_name] = rel_type
+		self.relation_types[relation_type] = relation_type_obj
 
 		# Register reverse relation if specified
 		if reverse_name:
 			reverse_rel = RelationType(
-				reverse_name, to_type, from_type,
-				fields, rel_name, is_bidirectional
+				reverse_name, target_type, source_type,
+				final_fields, relation_type, is_bidirectional
 			)
 			self.relation_types[reverse_name] = reverse_rel
 
@@ -142,13 +193,13 @@ class GraphiteEngine:
 			)
 
 		# Create values dictionary
-		node_values = {}
+		node_values = { }
 		if parse_fields:
 			for current_field, value in zip(all_fields, values):
-				node_values[current_field.name] = self.parser.parse_field_value(value, current_field)
+				node_values[current_field.name] = _parser.parse_field_value(value, current_field)
 		else:
 			for current_field, value in zip(all_fields, values):
-				node_values[current_field.name] = self.parser.validate_field_value(
+				node_values[current_field.name] = _parser.validate_field_value(
 					value,
 					current_field
 				)
@@ -197,8 +248,8 @@ class GraphiteEngine:
 			)
 
 		if not (
-			self.is_node_from_type(from_id, rel_type_obj.from_type) and
-			self.is_node_from_type(to_id, rel_type_obj.to_type)
+				self.is_node_from_type(from_id, rel_type_obj.from_type) and
+				self.is_node_from_type(to_id, rel_type_obj.to_type)
 		):
 			raise InvalidRelationError(
 				rel_type_obj,
@@ -213,13 +264,13 @@ class GraphiteEngine:
 			)
 
 		# Create values dictionary
-		rel_values = {}
+		rel_values = { }
 		if parse_fields:
 			for current_field, value in zip(rel_type_obj.fields, values):
-				rel_values[current_field.name] = self.parser.parse_field_value(value, current_field)
+				rel_values[current_field.name] = _parser.parse_field_value(value, current_field)
 		else:
 			for current_field, value in zip(rel_type_obj.fields, values):
-				rel_values[current_field.name] = self.parser.validate_field_value(
+				rel_values[current_field.name] = _parser.validate_field_value(
 					value,
 					current_field
 				)
@@ -305,7 +356,7 @@ class GraphiteEngine:
 
 		:except NotFoundError: if `node_type` not defined
 		"""
-		return {self.nodes[n] for n in self._get_nodes_of_type_ids(node_type, with_subtypes)}
+		return { self.nodes[n] for n in self._get_nodes_of_type_ids(node_type, with_subtypes) }
 
 	def _get_nodes_of_type_ids(self, node_type: str, with_subtypes: bool = True) -> set[str]:
 		if node_type not in self.node_types:
@@ -316,8 +367,10 @@ class GraphiteEngine:
 
 		nodes = self.node_by_type[node_type]
 		if with_subtypes:
-			nodes.update(*[self._get_nodes_of_type_ids(ntype, True)
-				for ntype in self._get_subtypes(node_type)])
+			nodes.update(
+				*[self._get_nodes_of_type_ids(ntype, True)
+					for ntype in self._get_subtypes(node_type)]
+			)
 		return nodes
 
 	def _get_subtypes(self, node_type: str) -> set[str]:
@@ -355,8 +408,8 @@ class GraphiteEngine:
 
 		result_ids = self.relations_by_from[node_id]
 		if rel_type:
-			result_ids = {r for r in result_ids if r in self.relations_by_type[rel_type]}
-		return {self.relations[rel_id] for rel_id in result_ids}
+			result_ids = { r for r in result_ids if r in self.relations_by_type[rel_type] }
+		return { self.relations[rel_id] for rel_id in result_ids }
 
 	def get_relations_to(self, node_id: str, rel_type: str | None = None) -> set[Relation]:
 		"""
@@ -382,8 +435,8 @@ class GraphiteEngine:
 
 		result_ids = self.relations_by_to[node_id]
 		if rel_type:
-			result_ids = {r for r in result_ids if r in self.relations_by_type[rel_type]}
-		return {self.relations[rel_id] for rel_id in result_ids}
+			result_ids = { r for r in result_ids if r in self.relations_by_type[rel_type] }
+		return { self.relations[rel_id] for rel_id in result_ids }
 
 	def undefine_node(self, node_type: str) -> None:
 		"""
@@ -400,10 +453,10 @@ class GraphiteEngine:
 				"Node type",
 				node_type
 			)
-		for ntype in self.node_types.values():
+		for ntype in list(self.node_types.values()):
 			if ntype.parent and ntype.parent.name == node_type:
 				self.undefine_node(ntype.name)
-		for rtype in self.relation_types.values():
+		for rtype in list(self.relation_types.values()):
 			if node_type in (rtype.from_type, rtype.to_type):
 				self.undefine_relation(rtype.name)
 		self.remove_nodes(self.node_by_type[node_type])
@@ -429,7 +482,7 @@ class GraphiteEngine:
 		reverse_name = self.relation_types[relation_type].reverse_name
 		if not _is_reverse and reverse_name:
 			self.undefine_relation(reverse_name, True)
-		self.remove_relations({self.relations[r] for r in self.relations_by_type[relation_type]})
+		self.remove_relations({ self.relations[r] for r in self.relations_by_type[relation_type] })
 		del self.relation_types[relation_type]
 		self.relations_by_type.pop(relation_type)
 
@@ -451,11 +504,11 @@ class GraphiteEngine:
 		:except NotFoundError: if any node is not found
 		"""
 		if isinstance(nodes, (str, Node)):
-			_nodes = {nodes if isinstance(nodes, str) else nodes.id}
+			_nodes = { nodes if isinstance(nodes, str) else nodes.id }
 		else:
-			_nodes = {n if isinstance(n, str) else n.id for n in nodes}
+			_nodes = { n if isinstance(n, str) else n.id for n in nodes }
 
-		missing = {nid for nid in _nodes if nid not in self.nodes}
+		missing = { nid for nid in _nodes if nid not in self.nodes }
 		if missing:
 			raise NotFoundError("Node", f"{next(iter(missing))} (and {len(missing) - 1} others)")
 
@@ -473,7 +526,7 @@ class GraphiteEngine:
 		for node in nodes:
 			relations.update(self.relations_by_from[node])
 			relations.update(self.relations_by_to[node])
-		return {self.relations[r] for r in relations}
+		return { self.relations[r] for r in relations }
 
 	def remove_relations(self, relations: Relation | set[Relation] | list[Relation]) -> None:
 		"""
@@ -488,7 +541,7 @@ class GraphiteEngine:
 		if isinstance(relations, list):
 			relations = cast(set[Relation], set(relations))
 		elif isinstance(relations, Relation):
-			relations = {relations}
+			relations = { relations }
 
 		for rel in relations:
 			if id(rel) not in self.relations:
@@ -497,22 +550,32 @@ class GraphiteEngine:
 		for rel in relations:
 			rel_id = id(rel)
 			del self.relations[rel_id]
-			self.relations_by_type[rel.type_name].discard(rel)
-			self.relations_by_from[rel.from_node].discard(rel)
-			self.relations_by_to[rel.to_node].discard(rel)
+			self.relations_by_type[rel.type_name].discard(rel_id)
+			self.relations_by_from[rel.from_node].discard(rel_id)
+			self.relations_by_to[rel.to_node].discard(rel_id)
 
 	@deprecated("Use remove_nodes() instead")
 	def remove_node(self, node: Node | str | list[Node | str]) -> None:
 		"""
-		Remove given nodes and all their relations
+		Deprecated: Use remove_nodes() instead
 		"""
+		warnings.warn(
+			"engine.remove_node() is deprecated, use remove_nodes() instead.",
+			DeprecationWarning,
+			stacklevel=2
+		)
 		return self.remove_nodes(node)
 
 	@deprecated("Use remove_relations() instead")
 	def remove_relation(self, relation: Relation | set[Relation] | list[Relation]) -> None:
 		"""
-		Removes given relations
+		Deprecated: Use remove_relations() instead
 		"""
+		warnings.warn(
+			"engine.remove_relation() is deprecated, use remove_relations() instead.",
+			DeprecationWarning,
+			stacklevel=2
+		)
 		return self.remove_relations(relation)
 
 	# ============= BULK LOADING / DSL =============
@@ -529,7 +592,7 @@ class GraphiteEngine:
 		:except NotFoundError: using any undefined object (node type, relation type, node, relation)
 		:except ValueError: if a used data type not fount
 		"""
-		self.parser.parse(self, data)
+		_parser.parse(self, data)
 
 	@deprecated("Use parse() instead")
 	def load_dsl(self, dsl: str) -> None:
@@ -544,6 +607,11 @@ class GraphiteEngine:
 		:except NotFoundError: using any undefined object (node type, relation type, node, relation)
 		:except ValueError: if a used data type not fount
 		"""
+		warnings.warn(
+			"engine.load_dsl() is deprecated, use parse() instead.",
+			DeprecationWarning,
+			stacklevel=2
+		)
 		self.parse(dsl)
 
 	# =============== PERSISTENCE ===============
@@ -556,7 +624,6 @@ class GraphiteEngine:
 		"""
 		data = self._build_save_payload()
 		with open(file_path, 'w', encoding='utf-8') as f:
-			# noinspection PyTypeChecker
 			json.dump(data, f, cls=GraphiteJSONEncoder, indent=2, ensure_ascii=False)
 
 	def load_safe(
@@ -607,7 +674,7 @@ class GraphiteEngine:
 		# Load normally
 		self._load_from_dict(data)
 
-	# pylint: disable=too-many-locals, too-many-branches
+
 	def _load_from_dict(self, data: dict[str, Any]) -> None:
 		"""
 		Internal method to load from dictionary (used by both load and load_safe)
@@ -619,92 +686,11 @@ class GraphiteEngine:
 		# Clear existing data
 		self.clear()
 
-		node_types_data = data.get('node_types', [])
-		relation_types_data = data.get('relation_types', [])
-		nodes_data = data.get('nodes', [])
-		relations_data = data.get('relations', [])
-
-		# Restore node types
-		for nt_dict in node_types_data:
-			if isinstance(nt_dict, NodeType):
-				nt = nt_dict
-			else:
-				# Convert from dict if needed
-				fields: list[Field] = list(map(
-					lambda fld: Field(fld.name, fld.dtype),
-					nt_dict.get("fields", [])
-				))
-				nt = NodeType(
-					name=nt_dict['name'],
-					fields=fields,
-					parent=None  # Will be restored later
-				)
-			self.node_types[nt.name] = nt
-
-		# Restore parent references for node types
-		for nt in node_types_data:
-			if isinstance(nt, dict):
-				parent_name = nt.get('parent')
-				name = nt.get('name')
-			else:
-				parent_name = nt.parent.name if nt.parent else None
-				name = nt.name
-			if isinstance(parent_name, dict):
-				parent_name = parent_name["name"]
-			if parent_name and parent_name in self.node_types and name in self.node_types:
-				self.node_types[name].parent = self.node_types[parent_name]
-
-		# Restore relation types
-		for rt_dict in relation_types_data:
-			if isinstance(rt_dict, RelationType):
-				rt = rt_dict
-			else:
-				rt = RelationType(
-					name=rt_dict['name'],
-					from_type=rt_dict['from_type'],
-					to_type=rt_dict['to_type'],
-					fields=rt_dict.get('fields', []),
-					reverse_name=rt_dict.get('reverse_name'),
-					is_bidirectional=rt_dict.get('is_bidirectional', False)
-				)
-			self.relation_types[rt.name] = rt
-
-		# Restore nodes
-		for node_data in nodes_data:
-			if isinstance(node_data, Node):
-				loading_node = node_data
-			else:
-				loading_node = Node(
-					type_name=node_data['type_name'],
-					id=node_data['id'],
-					values=node_data['values'],
-					type_ref=None
-				)
-
-			# Restore type reference
-			if loading_node.type_name in self.node_types:
-				loading_node.type_ref = self.node_types[loading_node.type_name]
-
-			self.nodes[loading_node.id] = loading_node
-
-		# Restore relations
-		for rel_data in relations_data:
-			if isinstance(rel_data, Relation):
-				rel = rel_data
-			else:
-				rel = Relation(
-					type_name=rel_data['type_name'],
-					from_node=rel_data['from_node'],
-					to_node=rel_data['to_node'],
-					values=rel_data['values'],
-					type_ref=None
-				)
-
-			# Restore type reference
-			if rel.type_name in self.relation_types:
-				rel.type_ref = self.relation_types[rel.type_name]
-
-			self.relations[id(rel)] = rel
+		node_types, relation_types, nodes, relations = _load_from_dict(data)
+		self.node_types = node_types.copy()
+		self.relation_types = relation_types.copy()
+		self.nodes = nodes.copy()
+		self.relations = relations.copy()
 
 		# Rebuild all indexes
 		self._rebuild_all_indexes()
@@ -716,11 +702,11 @@ class GraphiteEngine:
 		:return: Engine snapshot as JSON dictionary
 		"""
 		return {
-			"version"          : SAVE_FILE_VERSION,
-			"node_types"       : list(self.node_types.values()),
-			"relation_types"   : list(self.relation_types.values()),
-			"nodes"            : list(self.nodes.values()),
-			"relations"        : sorted(
+			"version": SAVE_FILE_VERSION,
+			"node_types": list(self.node_types.values()),
+			"relation_types": list(self.relation_types.values()),
+			"nodes": list(self.nodes.values()),
+			"relations": sorted(
 				self.relations.values(),
 				key=lambda r: (
 					r.type_name,
@@ -759,17 +745,17 @@ class GraphiteEngine:
 
 		:return: None
 		"""
-		if safe_mode:
-			self.load_safe(filename)
+		# Legacy unsafe loading (for backward compatibility)
+		if not safe_mode:
+			warnings.warn(
+				"Unsafe loading mode will be deprecated in next versions. Use safe_mode=True for security. "
+				"You can use 'graphite.Migration.convert_pickle_to_json()' to update your database.",
+				PendingDeprecationWarning
+			)
+			self._load_unsafe(filename)
 			return
 
-		# Legacy unsafe loading (for backward compatibility)
-		warnings.warn(
-			"Unsafe loading mode will be deprecated in next versions. Use safe_mode=True for security. "
-			"You can use 'graphite.Migration.convert_pickle_to_json()' to update your database.",
-			PendingDeprecationWarning
-		)
-		self._load_unsafe(filename)
+		self.load_safe(filename)
 
 	def _load_unsafe(self, filename: str) -> None:
 		"""
@@ -808,15 +794,17 @@ class GraphiteEngine:
 		and relations
 		"""
 		return {
-			'node_types'    : len(self.node_types),
+			'node_types': len(self.node_types),
 			'relation_types': len(self.relation_types),
-			'nodes'         : len(self.nodes),
-			'relations'     : len(self.relations),
+			'nodes': len(self.nodes),
+			'relations': len(self.relations),
 		}
 
 	# ================== ALGORITHMS =================
 
-	def bfs( # pylint: disable=too-many-arguments, too-many-positional-arguments
+	# pylint: disable=too-many-positional-arguments, too-many-arguments
+	# Reason: See main function.
+	def bfs(
 		self,
 		start: Node | str,
 		end: Node | str | Callable[[list[tuple[Relation, Node]]], bool] | None = None,
@@ -856,7 +844,9 @@ class GraphiteEngine:
 			allow_direction_switch, visited, max_results
 		)
 
-	def shortest_path( # pylint: disable=too-many-positional-arguments, too-many-arguments
+	# pylint: disable=too-many-positional-arguments, too-many-arguments
+	# Reason: See main function.
+	def shortest_path(
 		self,
 		from_node: Node | str,
 		to_end: Node | str | Callable[[list[tuple[Relation, Node]]], bool] | None = None,
@@ -889,7 +879,9 @@ class GraphiteEngine:
 			ignore_nodes, weight
 		)
 
-	def all_shortest_paths( # pylint: disable=too-many-positional-arguments, too-many-arguments
+	# pylint: disable=too-many-positional-arguments, too-many-arguments
+	# Reason: See main function.
+	def all_shortest_paths(
 		self,
 		from_node: Node | str,
 		to_end: Node | str | Callable[[list[tuple[Relation, Node]]], bool] | None = None,
@@ -922,7 +914,9 @@ class GraphiteEngine:
 			ignore_nodes, weight
 		)
 
-	def connected_components( # pylint: disable=too-many-positional-arguments, too-many-arguments
+	# pylint: disable=too-many-positional-arguments, too-many-arguments
+	# Reason: See main function.
+	def connected_components(
 		self,
 		nodes: Node | str | set[Node | str] | None = None,
 		return_all_nodes: bool = False,
@@ -949,7 +943,9 @@ class GraphiteEngine:
 			ignore_nodes
 		)
 
-	def neighborhood( # pylint: disable=too-many-positional-arguments, too-many-arguments
+	# pylint: disable=too-many-positional-arguments, too-many-arguments
+	# Reason: See main function.
+	def neighborhood(
 		self,
 		start: Node | str,
 		max_distance: int | None = None,
