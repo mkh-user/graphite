@@ -474,6 +474,7 @@ class TestAllShortestPaths:
 class TestConnectedComponents:
 	"""Test connected_components algorithm"""
 
+	@pytest.mark.repeat(6)
 	def test_connected_components_all_nodes(self, populated_engine):
 		"""Test connected components on all nodes"""
 		engine = populated_engine

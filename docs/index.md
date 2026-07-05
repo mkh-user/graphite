@@ -7,39 +7,21 @@ It is designed to model graph-like data inside large Python codebases **without 
 
 ## Features
 
-- **🧩 Embedded by Design:**
-  Graphite is not a separate service or infrastructure dependency.
-  It lives inside your project, evolves with it, and collaborates naturally with your existing code.
-  No servers. No ports. No deployment headaches.
-- **🛠 Ready-made, Customizable Module:**
-  Graphite is intentionally simple and hackable.
-  You can fork it, modify it, or deeply integrate it into your project without fighting rigid abstractions.
-  The database adapts to your project — not the other way around.
-- **🐍 Native Python API:**
-  Everything is done through Python APIs.
-  No query strings.
-  DSL parsing is just an optional layer.
-  No context switching.
-  Your editor already knows how to autocomplete and document your queries.
-- **🔍 Query? It’s Code:**
-  Queries are built by chaining Python functions on the `QueryResult` object.
-  Zero parsing cost, Full IDE support, Refactor-safe, and Debuggable.
-- **🔄 Runtime Evolution:**
-  Change structures, data, or even engine behavior **at runtime**.
-  No shutdowns. No migrations. No waiting.
-- **🧱 Structure-Oriented Modeling:**
-  Define node types, relation types, fields, base types, and valid forms. 
-  Model your domain explicitly and safely.
-- **🧬 Node Inheritance:**
-  Create base node types and extend them with shared properties and advanced relationships.
-- **✨ Simple, Predictable Syntax:**
-  From defining structures to querying data, every step favors clarity and minimal syntax.
-- **💾 Serializable:**
-  Persist the entire database into a single file.
+Graphite provides an easy and robust way to use any graph-like data in Python projects, it's designed to provide:
+
+- **🧩 Embedded Database:** Database can live inside your project and in same process, so you can modify data and its structure fast, secure, and without any server-interaction headache.
+- **⚙️ Hackable Behavior:** Graphite is designed to provide all common features out-of-the-box, but is completely clean-coded to help you hack it easy and fast to shape it for your special needs.
+- **🐍 First-Class Python API:** Graphite uses its DSL as optional utility layer, so you can do anything directly with refactor-safe and intelligent Python API. Use DSL just when you like.
+- **🔍 No Query String:** Chain well-documented methods to query on data, no learning, parsing, error vanishing, or guessing. Your Python IDE helps you when you write! Just type `engine.query` and start.
+- **🔄 Runtime Evolution:** Customize data structure without shutdown, and deeply control behavior with flexible functions.
+- **🧱 Structure-Oriented Modeling:** Define types of nodes and relations with features like inheritance, typed fields, and valid patterns. Model your domain explicitly and safely.
+- **🧬 Node Inheritance:** Model real-world data easy and robust. Use subtypes, limited relations, inherited properties, complex validations.
+- **✨ Really useful DSL:** Use DSL to create data with more readable and less-duplicated minimal syntax.
+- **💾 Serializable:** Persist the entire database into a single JSON file.
 
 ## Usage
 
-See [quick start page](/quickstart) for installation guide and a usage example.
+See [quick start page](quickstart) for installation guide and a usage example.
 
 ## Why Graphite?
 
@@ -68,4 +50,3 @@ It provides graph modeling **without adding another system to operate**.
 | **Support / Community** | **🥇Very High:**<br>Large & active  | **🥈Medium:**<br>Docstrings only          | **🥉Low:**<br>Internal only             |
 | **Customizability**     | **🥉Low:**<br>Limited to API        | **🥈High:**<br>Open source                | **🥇Very High:**<br>Full control        |
 | **Ease of Use**         | **🥈Medium:**<br>Learn Cypher       | **🥇High:**<br>Quick & simple             | **🥉Low:**<br>Needs study & test        |
-

@@ -1,0 +1,50 @@
+:root {
+  --md-admonition-icon--important: url('data:image/svg+xml;charset=utf-8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M10 3h4v11h-4zm0 18v-4h4v4z"></path></svg>');
+  --md-admonition-icon--deprecated: url('data:image/svg+xml;charset=utf-8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>');
+  --md-admonition-icon--wrapper: url('data:image/svg+xml;charset=utf-8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M224 0v64c0 8.8 7.2 16 16 16h32c8.8 0 16-7.2 16-16V0h32c35.3 0 64 28.7 64 64v128c0 5.5-.7 10.9-2 16H130c-1.3-5.1-2-10.5-2-16V64c0-35.3 28.7-64 64-64zm96 512c-11.2 0-21.8-2.9-31-8 9.5-16.5 15-35.6 15-56V320c0-20.4-5.5-39.5-15-56 9.2-5.1 19.7-8 31-8h32v64c0 8.8 7.2 16 16 16h32c8.8 0 16-7.2 16-16v-64h32c35.3 0 64 28.7 64 64v128c0 35.3-28.7 64-64 64zM0 320c0-35.3 28.7-64 64-64h32v64c0 8.8 7.2 16 16 16h32c8.8 0 16-7.2 16-16v-64h32c35.3 0 64 28.7 64 64v128c0 35.3-28.7 64-64 64H64c-35.3 0-64-28.7-64-64z"></path></svg>');
+}
+
+.md-typeset .admonition.important,
+.md-typeset details.important {
+  border-color: rgb(43, 155, 70);
+}
+.md-typeset .admonition.deprecated,
+.md-typeset details.deprecated {
+  border-color: rgb(255, 82, 82);
+}
+.md-typeset .admonition.wrapper,
+.md-typeset details.wrapper {
+  border-color: rgb(0, 184, 212);
+}
+
+.md-typeset .important > .admonition-title,
+.md-typeset .important > summary {
+  background-color: rgba(43, 155, 70, 0.1);
+}
+.md-typeset .deprecated > .admonition-title,
+.md-typeset .deprecated > summary {
+  background-color: rgba(255, 82, 82, 0.1);
+}
+.md-typeset .wrapper > .admonition-title,
+.md-typeset .wrapper > summary {
+  background-color: rgba(0, 184, 212, 0.1);
+}
+
+.md-typeset .important > .admonition-title::before,
+.md-typeset .important > summary::before {
+  background-color: rgb(43, 155, 70);
+  -webkit-mask-image: var(--md-admonition-icon--important);
+          mask-image: var(--md-admonition-icon--important);
+}
+.md-typeset .deprecated > .admonition-title::before,
+.md-typeset .deprecated > summary::before {
+  background-color: rgb(255, 82, 82);
+  -webkit-mask-image: var(--md-admonition-icon--deprecated);
+          mask-image: var(--md-admonition-icon--deprecated);
+}
+.md-typeset .wrapper > .admonition-title::before,
+.md-typeset .wrapper > summary::before {
+  background-color: rgb(0, 184, 212);
+  -webkit-mask-image: var(--md-admonition-icon--wrapper);
+          mask-image: var(--md-admonition-icon--wrapper);
+}

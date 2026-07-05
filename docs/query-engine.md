@@ -1,6 +1,6 @@
 # Query Engine
 
-This document describes Graphite’s fluent query engine. Queries start from `engine.query` and return a chainable `QueryResult` object.
+This document describes Graphite's fluent query engine. Queries start from `engine.query` and return a chainable `QueryResult` object.
 
 The entry point is the `QueryBuilder`, which allows starting a query from a node type.
 

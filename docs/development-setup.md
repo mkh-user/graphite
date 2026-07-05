@@ -17,12 +17,12 @@ If you want to contribute to Graphite, you should create a fork first:
 git clone https://github.com/user-name/graphite.git
 ```
 
-> **Note:**  
-> You need a [GitHub](https://github.com) account to **contribute** in Graphite.
+!!! Note
+    You need a [GitHub](https://github.com) account to **contribute** in Graphite.
 
 ## Step 3: Install dependencies
 
-- [Install Python](https://www.python.org/downloads/). (Works on `3.9` to `3.14`)
+- [Install Python](https://www.python.org/downloads/). (Works on `3.10` to `3.14`)
 - Open terminal in project directory.
 - Install required Python packages with optional development and benchmark dependencies:
 ```shell

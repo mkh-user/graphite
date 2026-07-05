@@ -27,7 +27,7 @@ class TestPersistenceIntegration:
 
 		# Create new engine and load from file
 		new_engine = GraphiteEngine()
-		new_engine.load(temp_json_file, safe_mode=True)
+		new_engine.load(temp_json_file)
 
 		# Compare statistics
 		original_stats = engine.stats()
@@ -56,7 +56,7 @@ class TestPersistenceIntegration:
 		engine.save(temp_json_file)
 
 		new_engine = GraphiteEngine()
-		new_engine.load(temp_json_file, safe_mode=True)
+		new_engine.load(temp_json_file)
 
 		# Check inheritance was preserved
 		admin_type = new_engine.node_types["Admin"]
@@ -73,7 +73,7 @@ class TestPersistenceIntegration:
 		assert admin["username"] == "admin"
 		assert admin["permissions"] == "all"
 
-	def test_load_safe_security_checks(self, populated_engine, temp_json_file):
+	def test_load_security_checks(self, populated_engine, temp_json_file):
 		"""Test safe loading security checks"""
 		engine = populated_engine
 
@@ -87,12 +87,12 @@ class TestPersistenceIntegration:
 		new_engine = GraphiteEngine()
 
 		with pytest.raises(SafeLoadExtensionError):
-			new_engine.load_safe(non_json_file)
+			new_engine.load(non_json_file)
 
 		# Cleanup
 		os.unlink(non_json_file)
 
-	def test_load_safe_file_size_check(self, populated_engine, temp_json_file):
+	def test_load_file_size_check(self, populated_engine, temp_json_file):
 		"""Test safe loading file size check"""
 		engine = populated_engine
 
@@ -103,26 +103,15 @@ class TestPersistenceIntegration:
 		new_engine = GraphiteEngine()
 
 		with pytest.raises(FileSizeError):
-			new_engine.load_safe(temp_json_file, max_size_mb=0.001)  # 1KB limit
+			new_engine.load(temp_json_file, max_size_mb=0.001)  # 1KB limit
 
-	def test_load_unsafe_mode(self, populated_engine, temp_json_file):
-		"""Test unsafe loading mode (for backward compatibility)"""
+	def test_load_no_file_size_check(self, populated_engine, temp_json_file):
+		"""Test safe loading without file size check"""
 		engine = populated_engine
+
 		engine.save(temp_json_file)
 
-		new_engine = GraphiteEngine()
-
-		# Should show deprecation warning but still work
-		with warnings.catch_warnings(record=True) as w:
-			warnings.simplefilter("always")
-			new_engine.load(temp_json_file, safe_mode=False)
-
-			# Check warning was issued
-			assert len(w) > 0
-			assert "Unsafe loading" in str(w[0].message)
-
-		# Data should still be loaded
-		assert len(new_engine.nodes) == len(engine.nodes)
+		engine.load(temp_json_file, max_size_mb=None)
 
 	def test_load_invalid_json(self, temp_json_file):
 		"""Test loading invalid JSON file"""
@@ -133,7 +122,7 @@ class TestPersistenceIntegration:
 		engine = GraphiteEngine()
 
 		with pytest.raises(InvalidJSONError):
-			engine.load_safe(temp_json_file)
+			engine.load(temp_json_file)
 
 	def test_round_trip_complex_data(self, clean_engine, temp_json_file):
 		"""Test round-trip with complex data structures"""
@@ -167,7 +156,7 @@ class TestPersistenceIntegration:
 		engine.save(temp_json_file)
 
 		new_engine = GraphiteEngine()
-		new_engine.load(temp_json_file, safe_mode=True)
+		new_engine.load(temp_json_file)
 
 		# Verify data integrity
 		user = new_engine.get_node("user1")
@@ -193,7 +182,7 @@ class TestPersistenceIntegration:
 		assert len(engine.node_types) == 0
 
 		# Reload
-		engine.load(temp_json_file, safe_mode=True)
+		engine.load(temp_json_file)
 
 		assert len(engine.nodes) == original_count
 		assert "Person" in engine.node_types

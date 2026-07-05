@@ -46,7 +46,7 @@ class TestMigration:
 
 		# Verify JSON file can be loaded
 		converted_engine = GraphiteEngine()
-		converted_engine.load(json_file, safe_mode=True)
+		converted_engine.load(json_file)
 
 		# Compare statistics
 		original_stats = engine.stats()

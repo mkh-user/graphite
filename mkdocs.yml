@@ -1,24 +1,11 @@
 site_name: Graphite Docs
 site_url: https://mkh-user.github.io/graphite
 repo_url: https://github.com/mkh-user/graphite
-repo_name: GitHub
+repo_name: mkh-user/graphite
 edit_uri: blob/main/docs
-
 site_description: Online documentation for Graphite
 site_author: Mahan Khalili
 copyright: Copyright © 2026 Mahan Khalili
-
-plugins:
-  - search
-  - mkdocstrings:
-      handlers:
-        # See: https://mkdocstrings.github.io/python/usage/
-        python:
-          options:
-            docstring_style: sphinx
-markdown_extensions:
-  - admonition
-
 nav:
   - Home: index.md
   - Introduction:
@@ -29,18 +16,146 @@ nav:
   - Guides:
       - Benchmarking Graphite: benchmarks.md
   - References:
-      - Module-Level: references/module.md
-      - DSL: references/dsl.md
+      - Module: references/module.md
       - Engine: references/engine.md
-      - Data Types: references/data.md
+      - Instances:
+          - Node: references/node.md
+          - Relation: references/relation.md
+      - Algorithms: references/algorithms.md
+      - DSL: references/dsl.md
       - Query: references/query.md
       - Migration: references/migration.md
   - Developer Guides:
       - Contributing Guide: CONTRIBUTING.md
       - Development Setup: development-setup.md
-
 theme:
-  name: readthedocs
-  prev_next_buttons_location: both
-
-draft_docs: drafts/
+  name: material
+  custom_dir: docs/overrides
+  palette:
+    - media: "(prefers-color-scheme)"
+      toggle:
+        icon: material/brightness-auto
+        name: Switch to light mode
+    - scheme: slate
+      media: "(prefers-color-scheme: dark)"
+      primary: deep purple
+      accent: amber
+      toggle:
+        icon: material/brightness-4
+        name: Switch to Light Mode
+    - scheme: default
+      media: "(prefers-color-scheme: light)"
+      primary: deep purple
+      accent: amber
+      toggle:
+        icon: material/brightness-7
+        name: Switch to Dark Mode
+  font:
+    text: Inter
+    code: JetBrains Mono
+  icon:
+    logo: material/library
+    tag:
+      default: material/tag
+    repo: fontawesome/brands/github
+    edit: material/pencil
+    view: material/eye
+  favicon: favicon.svg
+  features:
+    - navigation.instant
+    - navigation.instant.prefetch
+    - navigation.instant.progress
+    - navigation.instant.preview
+    - navigation.tracking
+    - navigation.path
+    - navigation.indexes
+    - navigation.top
+    - navigation.footer
+    - toc.follow
+    - search.suggest
+    - search.share
+    - content.action.edit
+    - content.action.view
+    - content.code.copy
+    - content.code.select
+    - content.code.annotate
+exclude_docs: exclude/
+draft_docs: draft/
+markdown_extensions:
+  - toc:
+      permalink: true
+  - abbr
+  - admonition
+  - attr_list
+  - def_list
+  - md_in_html
+  - pymdownx.blocks.caption
+  - pymdownx.caret
+  - pymdownx.critic
+  - pymdownx.details
+  - pymdownx.emoji:
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.keys
+  - pymdownx.mark
+  - pymdownx.snippets
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - pymdownx.tilde
+  - tables
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/mkh-user/graphite
+      name: GitHub
+    - icon: simple/pypi
+      link: https://pypi.org/project/graphitedb
+      name: PyPI
+extra_css:
+  - overrides/extra.css
+plugins:
+  - search
+  - meta
+  - social
+  - tags:
+      tags_hierarchy: true
+  - git-revision-date-localized:
+      enable_creation_date: true
+  - git-committers:
+      enabled: !ENV [GIT_COMMITER, 'true']
+      repository: mkh-user/graphite
+      branch: main
+  - mkdocstrings:
+      handlers:
+        python:
+          inventories:
+            - https://docs.python.org/3/objects.inv
+          paths: [src]
+          options:
+            docstring_section_style: list
+            docstring_style: google
+            inherited_members: true
+            merge_init_into_class: true
+            separate_signature: true
+            show_category_heading: true
+            show_root_heading: true
+            show_signature: true
+            show_signature_annotations: true
+            show_signature_type_parameters: true
+            show_source: false
+            show_symbol_type_heading: true
+            show_symbol_type_toc: true
+            signature_crossrefs: true
+            summary: true

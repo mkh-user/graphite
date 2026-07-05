@@ -4,10 +4,10 @@
 
 We actively maintain and support the following Graphite versions:
 
-| Version    | Supported    | Note                   |
-|------------|--------------|------------------------|
-| `v0.x`     | ✅ Yes        | Supported until `v1.x` |
-| Dev / Main | ✅ Latest Dev |                        |
+| Version       | Note                   |
+|---------------|------------------------|
+| Latest `v0.x` | Supported until `v1.x` |
+| Dev / Main    |                        |
 
 Security fixes are applied to all supported versions.
 
@@ -46,7 +46,7 @@ Please report it in **Security** tab in GitHub repository (you need a GitHub acc
 
 If you believe someone is using Graphite to perform malicious actions or misusing security features:
 
-- Contact the maintainers via email: mahan.khalili.001@gmail.com
+- Contact the maintainers via email: mahan.khalili.001[at]gmail.com
 - Include a detailed description and any evidence.
 
 ---

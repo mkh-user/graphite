@@ -238,16 +238,16 @@ class TestValidation:
 	"""Test validation logic"""
 
 	def test_no_schema_validate(self, populated_engine, clean_engine, temp_json_file):
-		"""Test load_safe() without schema validation"""
+		"""Test load() without schema validation"""
 		populated_engine.save(temp_json_file)
 
-		clean_engine.load_safe(temp_json_file, validate_schema=False)
+		clean_engine.load(temp_json_file, validate_schema=False)
 
 	def test_schema_validate(self, populated_engine, clean_engine, temp_json_file):
-		"""Test load_safe() with schema validation"""
+		"""Test load() with schema validation"""
 		populated_engine.save(temp_json_file)
 
-		clean_engine.load_safe(temp_json_file, validate_schema=True)
+		clean_engine.load(temp_json_file, validate_schema=True)
 
 	def test_invalid_data_content(self, temp_json_file, clean_engine):
 		"""Test invalid data type for content"""
@@ -255,7 +255,7 @@ class TestValidation:
 			f.write('')
 
 		with pytest.raises(InvalidJSONError):
-			clean_engine.load_safe(temp_json_file)
+			clean_engine.load(temp_json_file)
 
 	def test_missing_keys(self, temp_json_file, clean_engine):
 		"""Test missing keys handling in load"""
@@ -263,7 +263,7 @@ class TestValidation:
 			f.write('{}')
 
 		with pytest.raises(ValidationError) as exc_info:
-			clean_engine.load_safe(temp_json_file)
+			clean_engine.load(temp_json_file)
 
 		assert "Missing required key" in str(exc_info.value)
 
@@ -283,7 +283,7 @@ class TestValidation:
 			)
 
 		with pytest.raises(ValidationError) as exc_info:
-			clean_engine.load_safe(temp_json_file)
+			clean_engine.load(temp_json_file)
 
 		assert "Save file version" in str(exc_info.value)
 
@@ -303,7 +303,7 @@ class TestValidation:
 			)
 
 		with pytest.raises(ValidationError) as exc_info:
-			clean_engine.load_safe(temp_json_file)
+			clean_engine.load(temp_json_file)
 
 		assert "node_types must be a list" in str(exc_info.value)
 
@@ -321,7 +321,7 @@ class TestValidation:
 			)
 
 		with pytest.raises(ValidationError) as exc_info:
-			clean_engine.load_safe(temp_json_file)
+			clean_engine.load(temp_json_file)
 
 		assert "relation_types must be a list" in str(exc_info.value)
 
@@ -339,7 +339,7 @@ class TestValidation:
 			)
 
 		with pytest.raises(ValidationError) as exc_info:
-			clean_engine.load_safe(temp_json_file)
+			clean_engine.load(temp_json_file)
 
 		assert "nodes must be a list" in str(exc_info.value)
 
@@ -357,7 +357,7 @@ class TestValidation:
 			)
 
 		with pytest.raises(ValidationError) as exc_info:
-			clean_engine.load_safe(temp_json_file)
+			clean_engine.load(temp_json_file)
 
 		assert "relations must be a list" in str(exc_info.value)
 
@@ -378,7 +378,7 @@ class TestValidation:
 			)
 
 		with pytest.warns(UserWarning, match="Unexpected key in data"):
-			clean_engine.load_safe(temp_json_file)
+			clean_engine.load(temp_json_file)
 
 	def test_missing_node_type(self, temp_json_file, clean_engine):
 		"""Test missing node types detection"""
@@ -410,6 +410,6 @@ class TestValidation:
 			)
 
 		with pytest.raises(NotFoundError) as exc_info:
-			clean_engine.load_safe(temp_json_file)
+			clean_engine.load(temp_json_file)
 
 		assert "Node type" in str(exc_info.value)

@@ -449,7 +449,7 @@ class GraphiteBenchmarks:
 		engine = self.create_default_engine()
 		filename = "_benchmark_temp.json"
 
-		t = tqdm(total=4, desc="Benchmark: Serialization", leave=False)
+		t = tqdm(total=3, desc="Benchmark: Serialization", leave=False)
 
 		# Save
 		self._run_benchmark(
@@ -459,39 +459,27 @@ class GraphiteBenchmarks:
 		)
 		t.update()
 
-		# Load (safe)
-		def load_safe():
+		# Load
+		def load():
 			eng = GraphiteEngine()
-			eng.load_safe(filename, max_size_mb=500, validate_schema=False)
+			eng.load(filename, max_size_mb=None, validate_schema=False)
 			return eng
 
 		self._run_benchmark(
 			f"serialization_load(n: {self.hsize}, r: {n(self.relations_count)}, validate off)",
-			load_safe
+			load
 		)
 		t.update()
 
-		# Load (safe + validation)
-		def load_safe_validate():
+		# Load + validation
+		def load_validate():
 			eng = GraphiteEngine()
-			eng.load_safe(filename, max_size_mb=500, validate_schema=True)
+			eng.load(filename, max_size_mb=None, validate_schema=True)
 			return eng
 
 		self._run_benchmark(
 			f"serialization_load(n: {self.hsize}, r: {n(self.relations_count)}, validate on)",
-			load_safe_validate
-		)
-		t.update()
-
-		# Load (unsafe/low-level)
-		def load_unsafe():
-			eng = GraphiteEngine()
-			eng.load(filename, safe_mode=False)
-			return eng
-
-		self._run_benchmark(
-			f"serialization_load(n: {self.hsize}, r: {n(self.relations_count)}, unsafe mode)",
-			load_unsafe
+			load_validate
 		)
 		t.update()
 		t.close()

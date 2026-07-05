@@ -1,12 +1,10 @@
-"""
-Helper module to update Graphite databases and handle other migrations
-"""
+"""Helper module to update Graphite databases and handle other migrations"""
 import glob
 import os
 import pickle
 import warnings
 
-from .engine import GraphiteEngine
+from .graphite_engine import GraphiteEngine
 from .utils import SecurityWarning
 
 class Migration:
@@ -16,14 +14,12 @@ class Migration:
 	def convert_pickle_to_json(
 		pickle_file: str, json_file: str, delete_original: bool = False
 	) -> None:
-		"""
-		Convert a pickle file to JSON format
+		"""Convert a pickle file to JSON format
 
-		:param pickle_file: Path to existing pickle file
-		:param json_file: Path for new JSON file
-		:param delete_original: Whether to delete pickle file after conversion
-
-		:return: None
+		Args:
+		    pickle_file: Path to existing pickle file
+		    json_file: Path for new JSON file
+		    delete_original: Whether to delete pickle file after conversion
 		"""
 		# Load from pickle (with safety warnings)
 		warnings.warn(
@@ -62,14 +58,12 @@ class Migration:
 	def detect_pickle_and_convert_to_json(
 		directory: str, pattern: str = "*.db", delete_originals: bool = False
 	) -> None:
-		"""
-		Find and convert all pickle files in a directory
+		"""Find and convert all pickle files in a directory
 
-		:param directory: Directory to scan
-		:param pattern: File pattern to match (default: *.db)
-		:param delete_originals: Whether to delete pickle files after conversion
-
-		:return: None
+		Args:
+		    directory: Directory to scan
+		    pattern: File pattern to match (default: *.db)
+		    delete_originals: Whether to delete pickle files after conversion
 		"""
 		for pickle_file in glob.glob(os.path.join(directory, pattern)):
 			json_file = pickle_file.rsplit('.', 1)[0] + '.json'

@@ -1,6 +1,4 @@
-"""
-Serialization utils for Graphite databases
-"""
+"""Serialization utils for Graphite databases"""
 import json
 import warnings
 from datetime import date, datetime
@@ -154,14 +152,13 @@ def graphite_object_hook(dct: dict[str, Any]) -> Any:
 	raise TypeError(f"Unknown graphite type: {graphite_type}")
 
 def _validate_loaded_data(data: dict[str, Any]) -> None:
-	"""
-	Validate loaded data for consistency
+	"""Validate loaded data for consistency
 
-	:param data: Dictionary of loaded data
+	Args:
+	    data: Dictionary of loaded data
 
-	:return: None
-
-	:except ValidationError: for any fail at validation
+	Raises:
+	    ValidationError: for any fail at validation
 	"""
 	required_keys = ('version', 'node_types', 'relation_types', 'nodes', 'relations')
 	for key in required_keys:
@@ -227,12 +224,10 @@ def _validate_loaded_data(data: dict[str, Any]) -> None:
 def _load_from_dict(
 	data: dict[str, Any]
 ) -> tuple[dict[str, NodeType], dict[str, RelationType], dict[str, Node], dict[int, Relation]]:
-	"""
-	Internal method to load from dictionary (used by both load and load_safe)
+	"""Internal method to load from dictionary (used by both load and load_safe)
 
-	:param data: Dictionary of loaded data
-
-	:return: None
+	Args:
+	    data: Dictionary of loaded data
 	"""
 	node_types_data = data.get('node_types', [])
 	relation_types_data = data.get('relation_types', [])

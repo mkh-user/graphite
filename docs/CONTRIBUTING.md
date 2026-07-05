@@ -7,24 +7,6 @@ This document explains how to contribute effectively and consistently.
 
 ---
 
-## Table of Contents
-
-* [Code of Conduct](#code-of-conduct)
-* [Ways to Contribute](#ways-to-contribute)
-* [Getting Started](#getting-started)
-* [Development Workflow](#development-workflow)
-* [Branching Strategy](#branching-strategy)
-* [Commit Guidelines](#commit-guidelines)
-* [Pull Request Process](#pull-request-process)
-* [Coding Standards](#coding-standards)
-* [Testing Requirements](#testing-requirements)
-* [Documentation](#documentation)
-* [Issue Guidelines](#issue-guidelines)
-* [Design Proposals](#design-proposals)
-* [Release Process](#release-process)
-
----
-
 ## Code of Conduct
 
 All contributors must follow our Code of Conduct:

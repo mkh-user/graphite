@@ -1,6 +1,4 @@
-"""
-Parser for Graphite DSL
-"""
+"""Parser for Graphite DSL"""
 import re
 import warnings
 from datetime import date, datetime
@@ -13,19 +11,20 @@ from .exceptions import (
 from .types import DataType, DataTypePython, Field
 
 if TYPE_CHECKING:
-	from .engine import GraphiteEngine
+	from .graphite_engine import GraphiteEngine
 
 def parse_field_value(value: Any, field: Field) -> Any:
-	"""
-	Parse a raw value for a field (node or relation) and return it.
+	"""Parse a raw value for a field (node or relation) and return it.
 
 	**Note:** Value will be validated with field information, use ``parse_value()``
 	to ignore validation.
 
-	:param value: Value to parse
-	:param field: Field to convert and validate
+	Args:
+	    value: Value to parse
+	    field: Field to convert and validate
 
-	:return: Parsed and validated value
+	Returns:
+	    Parsed and validated value
 	"""
 	if isinstance(value, str) and field.dtype == DataType.STRING:
 		return value
@@ -33,15 +32,17 @@ def parse_field_value(value: Any, field: Field) -> Any:
 	return validate_field_value(value, field)
 
 def validate_field_value(value: Any, field: Field) -> None | str | int | float | bool | date:
-	"""
-	Converts given value to field's data type.
+	"""Converts given value to field's data type.
 
-	:param value: Parsed value to validate
-	:param field: Field to validate
+	Args:
+	    value: Parsed value to validate
+	    field: Field to validate
 
-	:return: Converted and validated value
+	Returns:
+	    Converted and validated value
 
-	:raise FieldError: Field value cannot be converted
+	Raises:
+	    FieldError: Field value cannot be converted
 	"""
 	# pylint: disable=unidiomatic-typecheck
 	# Reason: Python type of each data type is predefined, so using an type instead of instance
@@ -65,12 +66,13 @@ def validate_field_value(value: Any, field: Field) -> None | str | int | float |
 		) from e
 
 def parse_value(value: Any) -> Any:
-	"""
-	Parses a raw value (usually ``str``) into correct type (by guessing type).
+	"""Parses a raw value (usually ``str``) into correct type (by guessing type).
 
-	:param value: Value to parse
+	Args:
+	    value: Value to parse
 
-	:return: Parsed value
+	Returns:
+	    Parsed value
 	"""
 	if isinstance(value, str):
 		value = value.strip()
@@ -91,17 +93,18 @@ def parse_value(value: Any) -> Any:
 	return value
 
 def parse_node_definition(definition: str) -> tuple[str, list[tuple[str, str]], str | None]:
-	"""
-	Parse node type definition, for example:\n
+	"""Parse node type definition, for example:\n
 	'''\n
 	node Person\n
 	name: string\n
 	age: int\n
 	'''\n
 
-	:param definition: Node type definition string in Graphite DSL
+	Args:
+	    definition: Node type definition string in Graphite DSL
 
-	:return: node type name, fields, parent type name
+	Returns:
+	    node type name, fields, parent type name
 	"""
 	lines = definition.strip().split('\n')
 	first_line = lines[0].strip()
@@ -135,15 +138,18 @@ def parse_node_definition(definition: str) -> tuple[str, list[tuple[str, str]], 
 def parse_relation_definition(
 	definition: str
 ) -> tuple[str, str, str, list[tuple[str, str]], str | None, bool]:
-	"""
-	Parse relation definition
+	"""Parse relation definition
 
-	:param definition: Relation definition string in Graphite DSL
+	Args:
+	    definition: Relation definition string in Graphite DSL
 
-	:return: relation type name, source type name, target type name, fields, optional reverse
+	Returns:
+	    relation type name, source type name, target type name, fields,
+	    optional reverse
 	type name, is bidirectional or not
 
-	:except ParseError: empty or invalid definition
+	Raises:
+	    ParseError: empty or invalid definition
 	"""
 	lines = definition.strip().split('\n')
 
@@ -191,9 +197,11 @@ def parse_relation_definition(
 			participants_line = participants_line.replace('--', '-')
 			parts = participants_line.split('-')
 		else:
-			raise GraphiteError
+			parts = []
 		if len(parts) != 2:
-			raise GraphiteError
+			raise GraphiteError(
+				f"Failed to parse relation type pattern in line: {participants_line}"
+			)
 		from_type = parts[0].strip()
 		to_type = parts[1].strip()
 	except GraphiteError as e:
@@ -206,12 +214,13 @@ def parse_relation_definition(
 	return relation_name, from_type, to_type, fields, reverse_name, is_bidirectional
 
 def parse_node_instance(line: str) -> tuple[str, str, list[Any]]:
-	"""
-	Parse node instance: 'User, user_1, "Joe Doe", 32, "joe4030"'
+	"""Parse node instance: 'User, user_1, "Joe Doe", 32, "joe4030"'
 
-	:param line: node instance string in Graphite DSL
+	Args:
+	    line: node instance string in Graphite DSL
 
-	:return: node type name, node id, parsed field values
+	Returns:
+	    node type name, node id, parsed field values
 	"""
 	parts = parse_value_list(line, "node instance")
 
@@ -222,12 +231,13 @@ def parse_node_instance(line: str) -> tuple[str, str, list[Any]]:
 	return node_type, node_id, values
 
 def parse_relation_instance(line: str) -> tuple[str, str, str, list[Any]]:
-	"""
-	Parse relation instance: 'user_1 -[OWNER, 2000-10-04]-> notebook'
+	"""Parse relation instance: 'user_1 -[OWNER, 2000-10-04]-> notebook'
 
-	:param line: relation instance string in Graphite DSL
+	Args:
+	    line: relation instance string in Graphite DSL
 
-	:return: source node id, target node id, relation type name, field values
+	Returns:
+	    source node id, target node id, relation type name, field values
 	"""
 	# Extract relation type and attributes
 	pattern = r'^(\w+)\s*(-\[([^\]]+)\]\s*[->-]\s*|\s*[->-]\s*\[([^\]]+)\]\s*->\s*)(\w+)$'
@@ -248,19 +258,19 @@ def parse_relation_instance(line: str) -> tuple[str, str, str, list[Any]]:
 
 # pylint: disable=too-many-locals
 # Reason: As main responsible of DSL parsing complexity of this function is reasonable and
-# relavily low.
+# relatively low.
 def parse(engine: 'GraphiteEngine', data: str) -> None:
-	"""
-	Parse and load data from Graphite DSL to engine
+	"""Parse and load data from Graphite DSL to engine
 
-	:param engine: engine instance
-	:param data: data as Graphite DSL string
+	Args:
+	    engine: engine instance
+	    data: data as Graphite DSL string
 
-	:return: None
-
-	:except ParseError: if parsing fails
-	:except NotFoundError: using any undefined object (node type, relation type, node, relation)
-	:except ValueError: if a used data type not found
+	Raises:
+	    ParseError: if parsing fails
+	    NotFoundError: using any undefined object (node type, relation
+	        type, node, relation)
+	    ValueError: if a used data type not found
 	"""
 	lines = data.strip().split('\n')
 

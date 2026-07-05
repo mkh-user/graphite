@@ -1,6 +1,4 @@
-"""
-Implemented standard graph algorithms for Graphite graph database.
-"""
+"""Implemented standard graph algorithms for Graphite graph database."""
 from collections import deque
 from typing import Callable, TYPE_CHECKING, cast
 
@@ -8,7 +6,7 @@ from .instances import Node, Relation
 from .query import Direction
 
 if TYPE_CHECKING:
-	from .engine import GraphiteEngine
+	from .graphite_engine import GraphiteEngine
 
 # pylint: disable=too-many-branches, too-many-locals, too-many-positional-arguments
 # pylint: disable=too-many-arguments
@@ -28,28 +26,38 @@ def bfs(
 	visited: set[str] | None = None,
 	max_results: int | None = None
 ) -> list[tuple[str, int, list[tuple[Relation, Node]]]]:
-	"""
-	Highly customizable Breadth-First Search in graph
+	"""Highly Customizable [**BFS**](https://en.wikipedia.org/wiki/Breadth-first_search)
+	(Breadth-First Search) in the graph.
 
-	Note: Steps are sorted by distance (it's logical order too). When using INCOMING or BOTH
-	directions, results contain founded paths with a pattern like this:
-	``'end', depth_int, [(Relation(Type:other->start), Node(Type:other)), ...,
-	(Relation(Type:end->another), Node(Type:end))]``
+	!!! Note
+	    Steps are sorted by distance in returned result.
 
-	:param engine: Engine to use
-	:param start: Starting node
-	:param end: End target, node, node ID, or a callable ((path) -> bool) to match on path
-	:param stop_at_first: If True and ``end`` is provided, stops at first match
-	:param direction: Direction to traverse
-	:param relation_type: Type of relations to traverse
-	:param max_depth: Maximum depth to traverse
-	:param include_start: If True check starting node on result
-	:param allow_direction_switch: If True allow direction switch in a path when ``direction =
-	Direction.BOTH``
-	:param visited: Optional visited set to ignore
-	:param max_results: Maximum number of results to return
-	:return: An empty list or a list of found paths with each item as: (node_id, path_depth,
-	list(path_steps)), where ``path_steps`` is (relation, node)
+	Args:
+	    start: Starting node ID or object.
+	    end: One of below:
+
+	        - `None`: Match on all nodes in the result.
+	        - Node ID or object: Match on all paths to given node.
+	        - Callable (`(path) -> bool`): Match on a path when given callable returns `True`.
+
+	    stop_at_first: If `True` and `end` is provided, stops at first match.
+	    direction: Direction to traverse.
+	    relation_type: Type of relations to limit traverse.
+	    max_depth: Maximum depth to traverse.
+	    include_start: If `True` check starting node on result.
+	    allow_direction_switch: If `True` allow direction switch in a path when
+	        `direction=Direction.BOTH`.
+	    visited: Visited set of node IDs to ignore.
+	    max_results: Maximum number of results to return.
+
+	Returns:
+	    An empty list or a list of found paths sorted by distance with each item as:
+	        ```python
+	        (destination_node_id, path_depth, [(step_relation_obj, step_node_obj), ...])
+	                                          ^^^^^^^  path_to_destination_node  ^^^^^^^
+	        ```
+	        `path_depth` is `0` for starting node, it means this is equal to the size of
+	        `path_to_destination_node`.
 	"""
 	if direction == Direction.BOTH and not allow_direction_switch:
 		result_out = bfs(
@@ -121,23 +129,37 @@ def shortest_path(
 	ignore_nodes: set[str] | None = None,
 	weight: str | None = None
 ) -> tuple[str, int, list[tuple[Relation, Node]]] | None:
-	"""
-	Shortest path from ``from_node`` to ``to_end``
+	"""Finds shortest path from `from_node` to `to_end`.
 
-	Non-weighted mode uses BFS. Weighted mode is not implemented yet.
+	Non-weighted mode uses [bfs()](./#graphite.GraphiteEngine.bfs) internally.
 
-	:param engine: Engine to use
-	:param from_node: Starting node
-	:param to_end: End node, node ID, or function to call (list(steps) -> bool) or None to get one
-	of nearest neighbors
-	:param direction: Direction to traverse
-	:param relation_type: Type of relations to traverse
-	:param max_depth: Maximum depth to traverse
-	:param allow_direction_switch: If True allow direction switch in a path when ``direction =
-	Direction.BOTH``
-	:param ignore_nodes: Nodes to ignore
-	:param weight: Optional field name to weighted pathfinding (Not implemented yet)
-	:return: Target node ID, Distance, List of steps where each step is a (Relation, Node) pair
+	!!! Bug "Not Implemented Completely"
+	    Weighted mode is **not implemented yet**.
+
+	Args:
+	    from_node: Starting node Id or object.
+	    to_end: One of below:
+
+	        - `None`: Match on all nodes in the result. It means nearest neighbor.
+	        - Node ID or object: Match on all paths to given node.
+	        - Callable (`(path) -> bool`): Match on a path when given callable returns `True`.
+
+	    direction: Direction to traverse.
+	    relation_type: Type of relations to allow traverse.
+	    max_depth: Maximum depth to traverse.
+	    allow_direction_switch: If `True` allow direction switch in a path when `direction =
+	        Direction.BOTH`.
+	    ignore_nodes: Node IDs to ignore.
+	    weight: Optional field name to weighted pathfinding. **(Not implemented yet)**
+
+	Returns:
+	    `None` or the shortest found path as:
+	        ```python
+	        (destination_node_id, path_depth, [(step_relation_obj, step_node_obj), ...])
+	                                          ^^^^^^^  path_to_destination_node  ^^^^^^^
+	        ```
+	        `path_depth` is `0` for starting node, it means this is equal to the size of
+	        `path_to_destination_node`.
 	"""
 	if weight is None:
 		result = bfs(
@@ -150,7 +172,8 @@ def shortest_path(
 			max_depth,
 			False,
 			allow_direction_switch,
-			ignore_nodes
+			ignore_nodes,
+			1
 		)
 		return None if len(result) == 0 else result[0]
 	raise NotImplementedError("Weighted shortest path is not implemented yet.")
@@ -166,25 +189,42 @@ def all_shortest_paths(
 	max_depth: int | None = None,
 	allow_direction_switch: bool = False,
 	ignore_nodes: set[str] | None = None,
-	weight: str | None = None
+	weight: str | None = None,
+	max_results: int | None = None
 ) -> list[tuple[str, int, list[tuple[Relation, Node]]]]:
-	"""
-	All shortest paths from ``from_node`` to ``to_end``
+	"""All shortest paths from `from_node` to `to_end`.
 
-	Non-weighted mode uses BFS. Weighted mode is not implemented yet.
+	Non-weighted mode uses [bfs()](./#graphite.GraphiteEngine.bfs) internally.
 
-	:param engine: Engine to use
-	:param from_node: Starting node
-	:param to_end: End node, node ID, or function to call (list(steps) -> bool) or None to match
-	:param direction: Direction to traverse
-	:param relation_type: Relation types to traverse
-	:param max_depth: Maximum depth to traverse
-	:param allow_direction_switch: If True allow direction switch in a path when ``direction =
-	Direction.BOTH``
-	:param ignore_nodes: Nodes to ignore
-	:param weight: Optional weight field name to weighted pathfinding (Not implemented yet)
-	:return: List of result paths like shortest_path(), where items are sorted by distance / cost
-	and cycles are trimmed
+	!!! Bug "Not Implemented Completely"
+	    Weighted mode is **not implemented yet**.
+
+	Args:
+	    from_node: Starting node ID or object.
+	    to_end: One of below:
+
+	        - `None`: Match on all nodes in the result. It means all (or `max_results`) nearest
+	            neighbors.
+	        - Node ID or object: Match on all paths to given node.
+	        - Callable (`(path) -> bool`): Match on a path when given callable returns `True`.
+
+	    direction: Direction to traverse.
+	    relation_type: Type of relations to limit traverse.
+	    max_depth: Maximum depth to traverse.
+	    allow_direction_switch: If `True` allow direction switch in a path when
+	        `direction=Direction.BOTH`.
+	    ignore_nodes: Visited set of node IDs to ignore.
+	    weight: Optional field name to weighted pathfinding.
+	    max_results: Maximum number of results to return.
+
+	Returns:
+	    An empty list or a list of found paths sorted by distance with each item as:
+	        ```python
+	        (destination_node_id, path_depth, [(step_relation_obj, step_node_obj), ...])
+	                                          ^^^^^^^  path_to_destination_node  ^^^^^^^
+	        ```
+	        `path_depth` is `0` for starting node, it means this is equal to the size of
+	        `path_to_destination_node`.
 	"""
 	if weight is None:
 		paths = bfs(
@@ -197,7 +237,8 @@ def all_shortest_paths(
 			max_depth,
 			False,
 			allow_direction_switch,
-			ignore_nodes
+			ignore_nodes,
+			max_results
 		)
 		if not paths:
 			return []
@@ -216,19 +257,25 @@ def connected_components(
 	allow_direction_switch: bool = False,
 	ignore_nodes: set[str] | None = None
 ) -> list[set[str]]:
-	"""
-	Split given nodes to connected components
+	"""Splits given nodes to connected components.
 
-	:param engine: Engine to use
-	:param nodes: One or a set of nodes / node IDs to group, or None to get all nodes from engine
-	:param return_all_nodes: If True return all nodes in component, not just intersection with
-	``nodes``
-	:param direction: Direction to traverse
-	:param relation_type: Type of relations to traverse
-	:param allow_direction_switch: If True allow direction switch in a path when ``direction =
-	Direction.BOTH``
-	:param ignore_nodes: Nodes to ignore
-	:return: List of component nodes
+	!!! Note
+	    Uses [bfs()](./#graphite.GraphiteEngine.bfs) internally.
+
+	Args:
+	    nodes: One or a set of node (objects or IDs) to group, or `None` to get all nodes from
+	        engine.
+	    return_all_nodes: If `True`, includes all nodes in each component, not just intersection
+	        of them with input `nodes`. Has no effect when `nodes = None`. `False` is unusual
+	        when using a single node.
+	    direction: Direction to traverse.
+	    relation_type: Type of relations to allow traverse.
+	    allow_direction_switch: If `True`, allow direction switch in a path when `direction
+	        = Direction.BOTH`.
+	    ignore_nodes: Node IDs to ignore.
+
+	Returns:
+	    List of component nodes.
 	"""
 	if nodes is None:
 		_nodes = set(engine.nodes.keys())
@@ -291,21 +338,26 @@ def neighborhood(
 	allow_direction_switch: bool = False,
 	ignore_nodes: set[str] | None = None
 ) -> tuple[set[tuple[Node, int]], set[Relation]]:
-	"""
-	Get neighbors of ``start`` in given ``max_distance``
+	"""Returns neighbors of `start` in given `max_distance`.
 
-	:param engine: Engine to use
-	:param start: Starting node object or ID
-	:param max_distance: Maximum distance to traverse
-	:param filter_method: Optional callable to filter neighbors
-	:param max_results: Maximum number of results to return
-	:param direction: Direction to traverse
-	:param relation_type: Type of relations to traverse
-	:param allow_direction_switch: If True allow direction switch in a path when ``direction =
-	Direction.BOTH``
-	:param ignore_nodes: Nodes to ignore
-	:return: Set of neighbors (including ``start``) with their distance to ``start``, and set of
-	relations in neighborhood
+	!!! Note
+	    Uses [bfs()](./#graphite.GraphiteEngine.bfs) internally.
+
+	Args:
+	    start: Starting node object or ID.
+	    max_distance: Maximum distance to traverse.
+	    filter_method: Optional callable to filter neighbors (`(path) -> bool`).
+	    max_results: Maximum number of results to return.
+	    direction: Direction to traverse.
+	    relation_type: Type of relations to allow
+	        traverse.
+	    allow_direction_switch: If `True`, allow direction switch in a path when `direction =
+	        Direction.BOTH`.
+	    ignore_nodes: Node IDs to ignore.
+
+	Returns:
+	    Set of neighbors (including `start`) with their distance to
+	        `start`, and set of relations in neighborhood.
 	"""
 	paths = bfs(
 		engine,

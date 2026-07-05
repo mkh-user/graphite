@@ -197,7 +197,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Automated PyPI releases.
-- Error reporting in .where() queries.
+- Error reporting in `.where()` queries.
 - Error reporting for invalid date values.
 - `parse()` function for engine.
 

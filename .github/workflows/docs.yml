@@ -7,12 +7,14 @@ on:
       - dev
     paths:
       - 'docs/**'
+      - 'src/**'
       - 'mkdocs.yml'
   push:
     branches:
       - main
     paths:
       - 'docs/**'
+      - 'src/**'
       - 'mkdocs.yml'
 
 permissions:
@@ -33,7 +35,9 @@ jobs:
         with:
           python-version: '3.9'
       - name: Install packages with pip
-        run: pip install mkdocs 'mkdocstrings[python]'
+        run: |
+          pip install 'mkdocs-material[imaging]' 'mkdocstrings[python]' 
+          pip install mkdocs-git-revision-date-localized-plugin mkdocs-git-committers-plugin-2
       - name: Build with MkDocs
         run: mkdocs build --config-file mkdocs.yml
       - name: Upload artifact
