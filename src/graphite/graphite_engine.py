@@ -1,4 +1,6 @@
 """Main graph database engine of Graphite"""
+# pylint: disable=too-many-lines
+# Reason: With documentation, this module can't be smaller.
 import json
 import os
 import warnings

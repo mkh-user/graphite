@@ -2,7 +2,6 @@
 Integration tests for persistence (save/load)
 """
 import os
-import warnings
 from unittest.mock import mock_open, patch
 
 import pytest

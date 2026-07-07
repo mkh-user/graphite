@@ -1,13 +1,7 @@
 """
 Example usages of Graphite in separate functions. You can run a function to see its result.
 """
-import os
-import sys
-
-sys.path.insert(0, os.path.abspath('..'))
-from src import graphite
-# Use this in your code instead:
-#import graphite
+import graphite
 
 # =============== EXAMPLE COMPLETE DSL LOADING ===============
 
