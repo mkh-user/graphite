@@ -1,15 +1,9 @@
 """
 Runs a generic example for Graphite module.
 """
-import os
-import sys
-
 from datetime import date
 
-sys.path.insert(0, os.path.abspath('..'))
-from src import graphite
-# Use this in your code instead:
-#import graphite
+import graphite
 
 engine = graphite.engine()
 

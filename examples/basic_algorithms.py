@@ -2,16 +2,10 @@
 Example of usage of basic graph algorithms including BFS, etc. in Graphite with internal
 `algorithms` module.
 """
-import os
-import sys
 from random import randint
 
-sys.path.insert(0, os.path.abspath('..'))
-from src.graphite import Direction, GraphiteEngine
-from src.graphite.algorithms import bfs, neighborhood
-# Use this in your code instead:
-#from graphite import GraphiteEngine
-#from graphite.algorithms import bfs, neighborhood
+from graphite import GraphiteEngine, Direction
+from graphite.algorithms import bfs, neighborhood
 
 engine = GraphiteEngine()
 engine.define_node("""

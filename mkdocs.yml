@@ -134,7 +134,7 @@ plugins:
   - git-revision-date-localized:
       enable_creation_date: true
   - git-committers:
-      enabled: !ENV [GIT_COMMITER, 'true']
+      enabled: !ENV [GIT_COMMITER, true]
       repository: mkh-user/graphite
       branch: main
   - mkdocstrings:
