@@ -1,87 +1,28 @@
 # Graphite
 
-A clean, embedded graph database engine for Python.
+A clean, embedded graph database for Python.
 
 ---
 
-**Graphite** is a lightweight yet flexible **graph database engine** implemented in pure Python.
-It is designed to model graph-like data inside large Python codebases **without introducing the complexity of an external database**.
+**Graphite** is a lightweight yet flexible **graph database** implemented in pure Python. It is designed to model graph-like data inside large Python codebases **without introducing the complexity of an external database**.
 
-Optimized for graphs up to 500K nodes (tested up to 1M). 10x faster than NetworkX, with pure Python simplicity.
-(Repeat benchmark available at `tests/benchmark.py`)
+This database is optimized for graphs up to 500K nodes (tested up to 1M). 10x faster than NetworkX, with pure Python simplicity. (Repeatable benchmark is available at `tests/benchmark.py`)
 
 ---
 
 ## Features
 
-### 🧩 Embedded by Design
-Graphite is not a separate service or infrastructure dependency.
-It lives inside your project, evolves with it, and collaborates naturally with your existing code.
+Graphite provides an easy and robust way to use any graph-like data in Python projects, it's designed to provide:
 
-No servers. No ports. No deployment headaches.
-
----
-
-### 🛠 Ready-made, Customizable Module
-Graphite is intentionally simple and hackable.
-You can fork it, modify it, or deeply integrate it into your project without fighting rigid abstractions.
-
-The database adapts to your project — not the other way around.
-
----
-
-### 🐍 Native Python API
-Everything is done through Python APIs.
-No query strings.
-DSL parsing is just an optional layer.
-No context switching.
-
-Your editor already knows how to autocomplete and document your queries.
-
----
-
-### 🔍 Query? It’s Code.
-Queries are built by chaining Python functions on the `QueryResult` object.
-
-- Zero parsing cost
-- Full IDE support
-- Refactor-safe
-- Debuggable
-
----
-
-### 🔄 Runtime Evolution
-Change structures, data, or even engine behavior **at runtime**.
-No shutdowns.
-No migrations.
-No waiting.
-
----
-
-### 🧱 Structure-Oriented Modeling
-Define:
-- node types
-- relation types
-- fields
-- base types
-- valid forms
-
-Model your domain explicitly and safely.
-
----
-
-### 🧬 Node Inheritance
-Create base node types and extend them with shared properties and advanced relationships.
-
----
-
-### ✨ Simple, Predictable Syntax
-From defining structures to querying data, every step favors clarity and minimal syntax.
-
----
-
-### 💾 Serializable
-Persist the entire database into a single file.
+- **🧩 Embedded Database:** Database can live inside your project and in same process, so you can modify data and its structure fast, secure, and without any server-interaction headache.
+- **⚙️ Hackable Behavior:** Graphite is designed to provide all common features out-of-the-box, but is completely clean-coded to help you hack it easy and fast to shape it for your special needs.
+- **🐍 First-Class Python API:** Graphite uses its DSL as optional utility layer, so you can do anything directly with refactor-safe and intelligent Python API. Use DSL just when you like.
+- **🔍 No Query String:** Chain well-documented methods to query on data, no learning, parsing, error vanishing, or guessing. Your Python IDE helps you when you write! Just type `engine.query` and start.
+- **🔄 Runtime Evolution:** Customize data structure without shutdown, and deeply control behavior with flexible functions.
+- **🧱 Structure-Oriented Modeling:** Define types of nodes and relations with features like inheritance, typed fields, and valid patterns. Model your domain explicitly and safely.
+- **🧬 Node Inheritance:** Model real-world data easy and robust. Use subtypes, limited relations, inherited properties, complex validations.
+- **✨ Really useful DSL:** Use DSL to create data with more readable and less-duplicated minimal syntax.
+- **💾 Serializable:** Persist the entire database into a single JSON file.
 
 ---
 
@@ -129,21 +70,26 @@ It provides graph modeling **without adding another system to operate**.
 
 ```python
 import graphite
+from datetime import date
 
-def example_complete_dsl_loading():
+def basic_example():
     engine = graphite.engine()
 
-    complete_dsl = """
-    # Define node types
+    # Use DSL to define types and create data
+    engine.parse("""
+    # Node types with 'node '
     node Person
+        # Indentation is optional
         name: string
         age: int
-
-    node User from Person
-        id: string
-        email: string
-
+    """)
+    # Define node types with in-editor hints no parsing cost
+    engine.define_node("User", ("id", "string"), ("email", "string"), parent="Person")
+    # parse() can include multiple blocks
+    engine.parse("""
+    # You can use node types to control abstractness:
     node Object
+
     node Book from Object
         title: string
         n_pages: int
@@ -151,12 +97,16 @@ def example_complete_dsl_loading():
     node Car from Object
         model: string
         year: int
-
-    # Define relation types
-    relation FRIEND both
-        Person - Person
-        since: date
-
+    """)
+    engine.define_relation(     # Same with parse():
+        "FRIEND",               # relation FRIEND both
+        "Person",               #     Person - Person
+        "Person",               #     since: date
+	    ("since", "date"),
+        is_bidirectional=True
+    )
+    # Relation type blocks are same and node types
+    engine.parse("""
     relation OWNER reverse OWNED_BY
         Person -> Object
         since: date
@@ -165,9 +115,13 @@ def example_complete_dsl_loading():
     relation AUTHOR reverse AUTHORED_BY
         Person -> Book
         year: int
+    """)
 
-    # Create nodes
-    User, user_1, "Joe Doe", 32, "joe4030", "joe@email.com"
+    # Add data now
+    # Directly create nodes:
+    engine.create_node("User", "user_1", "Joe Doe", 32, "joe4030", "joe@email.com")
+    # Or with parse():
+    engine.parse("""
     User, user_2, "Jane Smith", 28, "jane28", "jane@email.com"
     User, user_3, "Bob Wilson", 45, "bob45", "bob@email.com"
     User, user_4, "Alice Brown", 22, "alice22", "alice@email.com"
@@ -178,21 +132,22 @@ def example_complete_dsl_loading():
 
     Car, car_1, "Toyota Camry", 2020
     Car, car_2, "Honda Civic", 2018
-
-    # Create relations
-    user_1 -[FRIEND, 2020-05-15]- user_2
-    user_1 -[FRIEND, 2019-08-22]- user_3
+    """)
+    # And relations:
+    # Dates can be parsed automatically:
+    engine.create_relation("user_1", "user_2", "FRIEND", "2020-05-15")
+    engine.create_relation("user_1", "user_3", "FRIEND", date(2019, 8, 22))
+    engine.create_relation("user_2", "book_2", "AUTHOR", 2021)
+    # You can pass parse_fields=True to parse all values from string to correct one:
+    engine.create_relation("user_1", "book_3", "AUTHOR", "2020", parse_fields=True)
+    # Is available in DSL too:
+    engine.parse("""
     user_2 -[FRIEND, 2021-01-10]- user_4
 
     user_1 -[OWNER, 2021-03-01, 2021-02-15]-> car_1
     user_2 -[OWNER, 2019-06-20, 2019-05-10]-> book_1
     user_3 -[OWNER, 2022-11-05, 2022-10-20]-> book_2
-
-    user_1 -[AUTHOR, 2020]-> book_3
-    user_2 -[AUTHOR, 2021]-> book_2
-    """
-
-    engine.parse(complete_dsl)
+    """)
 
     users = engine.query.User.get()
     print([u["name"] for u in users])
@@ -202,7 +157,7 @@ def example_complete_dsl_loading():
 
 More examples are available in `examples/` in the GitHub repository.
 
-See `docs/` for documentation and API reference.
+See <https://mkh-user.github.io/graphite> for the documentation and API reference.
 
 ---
 

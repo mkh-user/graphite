@@ -13,28 +13,28 @@ class TestGraphiteBasicIntegration:
 		# 1. Define schema
 		engine.define_node(
 			"""
-        node Person
-        name: string
-        age: int
-        email: string
-        """
+					node Person
+					name: string
+					age: int
+					email: string
+					"""
 		)
 
 		engine.define_node(
 			"""
-        node Company
-        name: string
-        founded: date
-        """
+					node Company
+					name: string
+					founded: date
+					"""
 		)
 
 		engine.define_relation(
 			"""
-        relation WORKS_AT
-        Person -> Company
-        position: string
-        since: date
-        """
+					relation WORKS_AT
+					Person -> Company
+					position: string
+					since: date
+					"""
 		)
 
 		# 2. Create data
@@ -102,13 +102,7 @@ class TestGraphiteBasicIntegration:
 
 		engine.define_node("node Person\nname: string")
 
-		engine.define_relation(
-			"""
-        relation FRIENDS_WITH both
-        Person - Person
-        since: date
-        """
-		)
+		engine.define_relation("relation FRIENDS_WITH both\nPerson - Person\nsince: date")
 
 		engine.create_node("Person", "p1", "Alice")
 		engine.create_node("Person", "p2", "Bob")
@@ -164,18 +158,18 @@ class TestGraphiteBasicIntegration:
 		engine.create_node("EmptyType", "empty1")
 
 		assert engine.get_node("empty1") is not None
-		assert engine.get_node("empty1").values == {}
+		assert engine.get_node("empty1").values == { }
 
 		# Node with all data types
 		engine.define_node(
 			"""
-        node AllTypes
-        str_field: string
-        int_field: int
-        float_field: float
-        date_field: date
-        bool_field: bool
-        """
+					node AllTypes
+					str_field: string
+					int_field: int
+					float_field: float
+					date_field: date
+					bool_field: bool
+					"""
 		)
 
 		engine.create_node(

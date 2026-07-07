@@ -31,6 +31,8 @@ dev = [
     "pytest~=9.0.2",
     "pylint~=4.0.4",
     "ty~=0.0.46",
+    "pytest-cov~=7.1.0",
+    " pytest-repeat~=0.9.4",
 ]
 
 benchmark = [

@@ -1,12 +1,10 @@
-"""
-Helper module to update Graphite databases and handle other migrations
-"""
+"""Helper module to update Graphite databases and handle other migrations"""
 import glob
 import os
 import pickle
 import warnings
 
-from .engine import GraphiteEngine
+from .graphite_engine import GraphiteEngine
 from .utils import SecurityWarning
 
 class Migration:
@@ -16,14 +14,12 @@ class Migration:
 	def convert_pickle_to_json(
 		pickle_file: str, json_file: str, delete_original: bool = False
 	) -> None:
-		"""
-		Convert a pickle file to JSON format
+		"""Convert a pickle file to JSON format
 
-		:param pickle_file: Path to existing pickle file
-		:param json_file: Path for new JSON file
-		:param delete_original: Whether to delete pickle file after conversion
-
-		:return: None
+		Args:
+		    pickle_file: Path to existing pickle file
+		    json_file: Path for new JSON file
+		    delete_original: Whether to delete pickle file after conversion
 		"""
 		# Load from pickle (with safety warnings)
 		warnings.warn(
@@ -62,30 +58,22 @@ class Migration:
 	def detect_pickle_and_convert_to_json(
 		directory: str, pattern: str = "*.db", delete_originals: bool = False
 	) -> None:
-		"""
-		Find and convert all pickle files in a directory
+		"""Find and convert all pickle files in a directory
 
-		:param directory: Directory to scan
-		:param pattern: File pattern to match (default: *.db)
-		:param delete_originals: Whether to delete pickle files after conversion
-
-		:return: None
+		Args:
+		    directory: Directory to scan
+		    pattern: File pattern to match (default: *.db)
+		    delete_originals: Whether to delete pickle files after conversion
 		"""
 		for pickle_file in glob.glob(os.path.join(directory, pattern)):
-			if pickle_file.endswith('.json'):
-				continue
-
 			json_file = pickle_file.rsplit('.', 1)[0] + '.json'
 
-			try:
-				# Quick check if it's a pickle file
-				with open(pickle_file, 'rb') as f:
-					# Try to read pickle header
-					header = f.read(4)
-					if header == b'\x80\x04' or header.startswith(b'\x80'):  # Pickle protocol 4
-						Migration.convert_pickle_to_json(
-							pickle_file, json_file, delete_originals
-						)
-			except Exception as e: # pylint: disable=broad-exception-caught
-				# Not a pickle file or can't read
-				print(f"File '{pickle_file}' skipped: {e}")
+			with open(pickle_file, 'rb') as f:
+				# Try to read pickle header
+				header = f.read(4)
+				if header == b'\x80\x04' or header.startswith(b'\x80'):  # Pickle protocol 4
+					Migration.convert_pickle_to_json(
+						pickle_file, json_file, delete_originals
+					)
+				else:
+					print(f"File '{pickle_file}' is not picle protocol 4, skipped.")

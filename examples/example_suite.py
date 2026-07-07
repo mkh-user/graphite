@@ -1,9 +1,13 @@
 """
 Example usages of Graphite in separate functions. You can run a function to see its result.
 """
-# noinspection PyPackageRequirements
-import graphite
-# import src.graphite as graphite # Just for test dev version
+import os
+import sys
+
+sys.path.insert(0, os.path.abspath('..'))
+from src import graphite
+# Use this in your code instead:
+#import graphite
 
 # =============== EXAMPLE COMPLETE DSL LOADING ===============
 

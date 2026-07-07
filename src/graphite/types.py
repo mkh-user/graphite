@@ -1,6 +1,4 @@
-"""
-Data, relation, and node type classes for Graphite database
-"""
+"""Data, relation, and node type classes for Graphite database"""
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -8,9 +6,7 @@ from datetime import date
 from enum import Enum
 
 class DataType(Enum):
-	"""
-	Valid data types in graphite. Used in nodes and relations properties.
-	"""
+	"""Valid data types in graphite. Used in nodes and relations properties."""
 	STRING = "string"
 	INT = "int"
 	DATE = "date"
@@ -18,9 +14,7 @@ class DataType(Enum):
 	BOOL = "bool"
 
 class DataTypePython(Enum):
-	"""
-	Maps each data type to its corresponding Python data type.
-	"""
+	"""Maps each data type to its corresponding Python data type."""
 	STRING = str
 	INT = int
 	DATE = date
@@ -29,16 +23,13 @@ class DataTypePython(Enum):
 
 @dataclass
 class Field:
-	"""
-	A data field (property) for nodes and relations.
-	"""
+	"""A data field (property) for nodes and relations."""
 	name: str
 	dtype: DataType
 
 @dataclass
 class NodeType:
-	"""
-	A defined node type (with ``node ...`` block in dsl or ``GraphiteEngine.define_node()``).
+	"""A defined node type (with ``node ...`` block in dsl or ``GraphiteEngine.define_node()``).
 	Each node type has a name (in snake_case usually), and optional list of fields (properties).
 	Supports optional parent node type.
 	"""
@@ -51,7 +42,7 @@ class NodeType:
 		"""Get all fields including inherited ones"""
 		if self.all_fields_cache is not None:
 			return self.all_fields_cache
-		fields = self.fields.copy()
+		fields = self.fields.copy() if self.fields is not None else []
 		if self.parent:
 			fields = self.parent.get_all_fields() + fields
 		self.all_fields_cache = fields
@@ -62,8 +53,7 @@ class NodeType:
 
 @dataclass
 class RelationType:
-	"""
-	A defined relation type (with ``relation ...`` block in dsl or
+	"""A defined relation type (with ``relation ...`` block in dsl or
 	``GraphiteEngine.define_relation()``). Each relation type has a name (in UPPER_SNAKE_CASE
 	usually), and optional list of fields (properties). A relation type can be from one node
 	type to another.
