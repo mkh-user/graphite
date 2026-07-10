@@ -34,7 +34,7 @@ jobs:
 
       - name: Run benchmark
         run: |
-          cd teats
+          cd tests
           python benchmark.py ${{ github.event.inputs.options }} 2>&1 | tee benchmark_output.txt
         continue-on-error: true
 
