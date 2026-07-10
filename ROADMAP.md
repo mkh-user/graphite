@@ -30,7 +30,7 @@ To provide an **in-memory** graph engine for **Python developers** who treat gra
 - [ ] Errors refactor
 - [ ] Use caching when possible
   - [x] Cache node type fields
-- [ ] Be scalable to 1M nodes, 1M relations, with <2.5 GB memory usage
+- [x] Be scalable to 1M nodes, 1M relations, with <2.5 GB memory usage - [done with 1.4 GB memory usage!](https://github.com/mkh-user/graphite/actions/runs/29027133185) 
 - [ ] Algorithms
   - [x] BFS
   - [x] Distance-based shortest path
