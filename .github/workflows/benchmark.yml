@@ -34,7 +34,8 @@ jobs:
 
       - name: Run benchmark
         run: |
-          python tests/benchmark.py ${{ github.event.inputs.options }} 2>&1 | tee benchmark_output.txt
+          cd teats
+          python benchmark.py ${{ github.event.inputs.options }} 2>&1 | tee benchmark_output.txt
         continue-on-error: true
 
       - name: Upload results
