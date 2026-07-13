@@ -30,6 +30,7 @@ nav:
   - Developer Guides:
       - Contributing Guide: CONTRIBUTING.md
       - Development Setup: development-setup.md
+      - Code of Conduct: CODE_OF_CONDUCT.md
 theme:
   name: material
   custom_dir: docs/overrides

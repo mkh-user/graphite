@@ -11,7 +11,7 @@ This document explains how to contribute effectively and consistently.
 
 All contributors must follow our Code of Conduct:
 
-👉 [CODE_OF_CONDUCT](https://github.com/mkh-user/graphite/blob/main/CODE_OF_CONDUCT.md)
+👉 [CODE_OF_CONDUCT](../CODE_OF_CONDUCT/)
 
 Participation in this project implies acceptance of its terms.
 
