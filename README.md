@@ -8,6 +8,8 @@ A clean, embedded graph database for Python.
 
 It's optimized for graphs with **up to 1M nodes**. Blazing fast as a pure Python database, outperforms NetworkX in both memory and speed, with 90x smaller package size. (Repeatable benchmark is available at `tests/benchmark.py`)
 
+Documentation, with guides about usage or contributing and API reference is available here: <https://mkh-user.github.io/graphite>
+
 ---
 
 ## Features
