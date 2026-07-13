@@ -6,7 +6,9 @@
 
 ## Mission
 
-Provide an **in-memory** graph engine for **Python developers** who treat graphs as **a core part of their project** — with the **simplicity** of working with a Python object, the power of **schema-based** data, and **no need to set up a separate service**.
+> **Graphite** is an in-memory graph engine for Python developers who treat graphs as a core part of their project. It provides a structured, schema-enforced graph database that runs entirely inside your Python process — with no separate service to install or manage.
+
+Full project mission, target audience, and value proposition is available in **[Mission Statement](../mission/)**
 
 ---
 

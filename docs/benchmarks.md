@@ -60,9 +60,9 @@ run a custom benchmark now:
 
 When you have an installed version of Graphite on your Python or virtual environment, you can benchmark it directly.
 
-1. Install Dependencies: Run this command to install benchmark suite dependencies:
+1. Install Dependencies: Run this command to install graphite and benchmark suite dependencies:
     ```shell
-    pip install pympler tqdm typer
+    pip install "graphitedb[benchmark]"
     ```
 2. Download Benchmark Suite: Go to [this page](https://github.com/mkh-user/graphite/blob/main/tests/benchmark.py) and
    download showed `benchmark.py` file.
@@ -83,8 +83,6 @@ You can use source code to benchmark Graphite.
 1. Get source code: Download source code zip from GitHub or clone it with Git.
 2. Install dependencies: Open project folder in terminal and run one of these commands:
     ```shell
-    # Manually install benchmark dependencies to use Graphite from src/
-    pip install typing_extensions pympler tqdm typer
     # Install Graphite with benchmark dependencies to your Python
     pip install ".[benchmark]"
     ```

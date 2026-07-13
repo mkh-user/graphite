@@ -4,11 +4,13 @@ A clean, embedded graph database for Python.
 
 ---
 
-**Graphite** is a lightweight yet flexible **graph database** implemented in pure Python. It is designed to model graph-like data inside Python codebases from tiny to big scale **without introducing the complexity of an external database**.
+**Graphite** is a lightweight yet flexible **graph database** implemented in pure Python. It is designed to model graph-like data inside Python codebases where graph is a core part of project, **without introducing the complexity of an external database**.
 
 It's optimized for graphs with **up to 1M nodes**. Blazing fast as a pure Python database, outperforms NetworkX in both memory and speed, with 90x smaller package size. (Repeatable benchmark is available at `tests/benchmark.py`)
 
 Documentation, with guides about usage or contributing and API reference is available here: <https://mkh-user.github.io/graphite>
+
+📖 **[Full Mission & Scope →](https://mkh-user.github.io/graphite/mission)**
 
 ---
 

@@ -13,8 +13,6 @@ nav:
       - Graph Model: graph-model.md
       - Creating Data Model: creating-data-model.md
       - Query Engine: query-engine.md
-  - Guides:
-      - Benchmarking Graphite: benchmarks.md
   - References:
       - Module: references/module.md
       - Engine: references/engine.md
@@ -25,6 +23,10 @@ nav:
       - DSL: references/dsl.md
       - Query: references/query.md
       - Migration: references/migration.md
+  - Guides:
+      - Benchmarking Graphite: benchmarks.md
+      - Roadmap: roadmap.md
+      - Mission: mission.md
   - Developer Guides:
       - Contributing Guide: CONTRIBUTING.md
       - Development Setup: development-setup.md
