@@ -85,7 +85,7 @@ exclude_docs: exclude/
 draft_docs: draft/
 markdown_extensions:
   - toc:
-      permalink: true
+      permalink: "◈"
   - abbr
   - admonition
   - attr_list
