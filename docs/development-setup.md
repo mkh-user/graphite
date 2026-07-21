@@ -74,15 +74,4 @@ ty check
 
 ### Running benchmarks
 
-Run benchmarks before / after your changes to measure performance impacts.
-
-- Open terminal in project directory.
-- Run this command to ensure you have benchmark dependencies:
-```shell
-pip install ".[benchmark]"
-```
-- Change directory to `tests/` with `cd tests/`
-- Run benchmark (append `--help` to get more information):
-```shell
-python benchmark.py
-```
+Run benchmarks before / after your changes to measure performance impacts. See [Benchmarking Graphite](../benchmarks/) for guides and notes.
